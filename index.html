@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cal Poly Campus Trees (2015)</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; color: #1f2a1c; }
@@ -40,7 +40,6 @@
         .no-results { padding: 12px 16px; color: #8a9a8a; }
         .range-inputs { display: flex; gap: 8px; margin-top: 8px; }
         .range-inputs input { width: 50%; padding: 8px 10px; border: 1px solid #dcdcdc; border-radius: 8px; font-size: 0.9rem; }
-        .text-input { width: 100%; padding: 8px 10px; border: 1px solid #dcdcdc; border-radius: 8px; font-size: 0.9rem; }
 
         .sidebar-toggle { position: absolute; top: 12px; right: 12px; z-index: 1100; padding: 10px 14px; background: white; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 0.9rem; display: none; }
         .mobile-locate-btn { position: absolute; top: 12px; right: 94px; z-index: 1100; padding: 10px 12px; background: white; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 0.85rem; display: none; color: #2d5016; }
@@ -50,16 +49,23 @@
         .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 900; }
         .sidebar-backdrop.visible { display: block; }
 
-        .leaflet-popup-content { margin: 10px 12px; line-height: 1.5; }
+        .maplibregl-popup-content { margin: 0; line-height: 1.5; padding: 10px 12px; }
         .popup-title { font-size: 1.05rem; font-weight: 700; color: #1f3b1f; margin-bottom: 4px; }
         .popup-sci { font-style: italic; color: #445544; margin-bottom: 6px; }
         .popup-meta { font-size: 0.9rem; color: #4b604b; }
         .popup-meta span { display: block; margin-bottom: 4px; }
-        .popup-links a { display: inline-block; margin-right: 8px; font-size: 0.85rem; color: #2d5016; text-decoration: none; }
-        .popup-links a:hover { text-decoration: underline; }
 
-        .leaflet-tooltip.tree-label { display: none; background: none; border: none; box-shadow: none; font-size: 11px; font-weight: 600; color: #2d5016; text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white, 0 -1px 0 white, 0 1px 0 white, -1px 0 0 white, 1px 0 0 white; }
-        #map.show-labels .leaflet-tooltip.tree-label.visible { display: block; }
+        .basemap-select {
+            width: 150px;
+            border: 0;
+            background: #fff;
+            color: #1f2a1c;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            appearance: none;
+        }
 
         @media (max-width: 900px) {
             .sidebar { position: absolute; right: 0; top: 0; height: 100%; transform: translateX(100%); }
@@ -140,34 +146,27 @@
         <div class="no-results" id="emptyState" style="display:none">No trees match your filters.</div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script>
-        const LABEL_ZOOM = 18;
-        const mapEl = document.getElementById('map');
-        const baseLayers = {
-            'Carto Light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 22,
+        const MOBILE_BREAKPOINT = 900;
+
+        const BASEMAPS = {
+            cartoLight: {
+                label: 'Carto Light',
+                tiles: [
+                    'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                    'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                    'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                    'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+                ],
                 attribution: '&copy; OpenStreetMap &copy; CARTO'
-            }),
-            'Esri World Imagery': L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 22,
+            },
+            esriImagery: {
+                label: 'Esri World Imagery',
+                tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
                 attribution: 'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-            })
+            }
         };
-
-        const map = L.map('map', { preferCanvas: true, zoomControl: true, layers: [baseLayers['Carto Light']] });
-        L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
-
-        let trees = [];
-        let markers = [];
-        let selectedFamilies = new Set();
-        let selectedGroups = new Set();
-        let selectedConditions = new Set();
-        let searchQuery = '';
-        let lastVisibleIndices = [];
-        let minHeight = null, maxHeight = null, minDbh = null, maxDbh = null;
-        let userLocationMarker = null;
-        let userAccuracyCircle = null;
 
         const GROUP_DEFS = [
             {
@@ -175,7 +174,7 @@
                 label: 'Gymnosperms',
                 match: (props) => {
                     const fam = (props.family || '').toLowerCase();
-                    return ['pinaceae','cupressaceae','taxaceae','arachariaceae','araucariaceae','podocarpaceae','ginkgoaceae','cycadaceae','zamiaceae','ephedraceae'].includes(fam);
+                    return ['pinaceae', 'cupressaceae', 'taxaceae', 'arachariaceae', 'araucariaceae', 'podocarpaceae', 'ginkgoaceae', 'cycadaceae', 'zamiaceae', 'ephedraceae'].includes(fam);
                 }
             },
             {
@@ -189,6 +188,7 @@
             }
         ];
 
+        const mapEl = document.getElementById('map');
         const searchInput = document.getElementById('search');
         const familyFiltersContainer = document.getElementById('familyFilters');
         const groupFiltersContainer = document.getElementById('groupFilters');
@@ -208,51 +208,266 @@
         const mobileLocateBtn = document.getElementById('mobileLocateBtn');
         const clearLocationBtn = document.getElementById('clearLocationBtn');
         const locationStatus = document.getElementById('locationStatus');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+        let trees = [];
+        let selectedFamilies = new Set();
+        let selectedGroups = new Set();
+        let selectedConditions = new Set();
+        let searchQuery = '';
+        let minHeight = null;
+        let maxHeight = null;
+        let minDbh = null;
+        let maxDbh = null;
+        let mapReady = false;
+        let dataReady = false;
+        let activeBasemap = 'cartoLight';
+        let pendingUpdate = false;
+
+        const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
+
+        class BasemapControl {
+            onAdd() {
+                this.container = document.createElement('div');
+                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+
+                this.select = document.createElement('select');
+                this.select.className = 'basemap-select';
+                this.select.innerHTML = `
+                    <option value="cartoLight">Carto Light</option>
+                    <option value="esriImagery">Esri World Imagery</option>
+                `;
+                this.select.value = activeBasemap;
+                this.onChange = (e) => {
+                    activeBasemap = e.target.value;
+                    applyBasemapVisibility();
+                };
+                this.select.addEventListener('change', this.onChange);
+
+                this.container.appendChild(this.select);
+                return this.container;
+            }
+
+            onRemove() {
+                this.select.removeEventListener('change', this.onChange);
+                this.container.parentNode.removeChild(this.container);
+            }
+        }
+
+        const map = new maplibregl.Map({
+            container: mapEl,
+            style: createMapStyle(),
+            center: [-120.6619, 35.3004],
+            zoom: 15.5,
+            maxZoom: 22,
+            dragRotate: false,
+            touchPitch: false
+        });
+
+        map.addControl(new maplibregl.NavigationControl(), 'top-left');
+        map.addControl(new BasemapControl(), 'top-left');
+
+        map.on('load', () => {
+            mapReady = true;
+            applyBasemapVisibility();
+            bindMapInteractions();
+            syncMobileControls();
+            syncDataToMap();
+            applyUserLocationToMap();
+        });
+
+        map.on('error', (err) => {
+            console.error('Map error', err.error || err);
+        });
 
         fetch('trees.geojson')
-            .then(r => r.json())
-            .then(data => {
-                trees = data.features;
+            .then((r) => r.json())
+            .then((data) => {
+                trees = data.features.map((feature, index) => enrichFeature(feature, index));
                 totalCount.textContent = trees.length;
 
-                const families = [...new Set(trees.map(f => f.properties.family).filter(Boolean))].sort();
-                const conditions = [...new Set(trees.map(f => f.properties.condition).filter(Boolean))].sort();
+                const families = [...new Set(trees.map((f) => f.properties.family).filter(Boolean))].sort();
+                const conditions = [...new Set(trees.map((f) => f.properties.condition).filter(Boolean))].sort();
                 renderFamilyFilters(families);
                 renderGroupFilters(GROUP_DEFS);
                 renderConditionFilters(conditions);
 
-                const bounds = L.latLngBounds(trees.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]));
-                map.fitBounds(bounds.pad(0.05));
-
-                markers = trees.map((feature, index) => createMarker(feature, index));
-                updateDisplay();
+                dataReady = true;
+                syncDataToMap();
+                scheduleUpdateDisplay();
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error('Failed to load data', err);
                 emptyState.style.display = 'block';
                 emptyState.textContent = 'Could not load trees data.';
             });
 
-        function createMarker(feature, index) {
-            const [lon, lat] = feature.geometry.coordinates;
-            const props = feature.properties;
-            const marker = L.circleMarker([lat, lon], {
-                radius: 4,
-                color: '#c62828',
-                weight: 1,
-                fillColor: '#c62828',
-                fillOpacity: 0.85
+        function createMapStyle() {
+            return {
+                version: 8,
+                glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+                sources: {
+                    basemap_carto: {
+                        type: 'raster',
+                        tiles: BASEMAPS.cartoLight.tiles,
+                        tileSize: 256,
+                        attribution: BASEMAPS.cartoLight.attribution
+                    },
+                    basemap_esri: {
+                        type: 'raster',
+                        tiles: BASEMAPS.esriImagery.tiles,
+                        tileSize: 256,
+                        attribution: BASEMAPS.esriImagery.attribution
+                    },
+                    trees: {
+                        type: 'geojson',
+                        data: emptyFeatureCollection
+                    },
+                    user_location: {
+                        type: 'geojson',
+                        data: emptyFeatureCollection
+                    },
+                    user_accuracy: {
+                        type: 'geojson',
+                        data: emptyFeatureCollection
+                    }
+                },
+                layers: [
+                    {
+                        id: 'basemap-carto',
+                        type: 'raster',
+                        source: 'basemap_carto',
+                        layout: { visibility: 'visible' }
+                    },
+                    {
+                        id: 'basemap-esri',
+                        type: 'raster',
+                        source: 'basemap_esri',
+                        layout: { visibility: 'none' }
+                    },
+                    {
+                        id: 'trees-circles',
+                        type: 'circle',
+                        source: 'trees',
+                        paint: {
+                            'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.8, 16, 3.8, 18, 5.2, 20, 6],
+                            'circle-color': '#c62828',
+                            'circle-stroke-width': 1,
+                            'circle-stroke-color': '#7f1d1d',
+                            'circle-opacity': 0.85
+                        }
+                    },
+                    {
+                        id: 'trees-labels',
+                        type: 'symbol',
+                        source: 'trees',
+                        minzoom: 15,
+                        layout: {
+                            'text-field': ['coalesce', ['get', 'common_name'], ''],
+                            'text-font': ['Noto Sans SemiBold'],
+                            'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 18, 12.5, 20, 14],
+                            'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+                            'text-radial-offset': 0.7,
+                            'text-justify': 'auto',
+                            'text-optional': true,
+                            'symbol-sort-key': ['to-number', ['coalesce', ['get', 'height_ft'], 0]]
+                        },
+                        paint: {
+                            'text-color': '#2d5016',
+                            'text-halo-color': '#ffffff',
+                            'text-halo-width': 1.35
+                        }
+                    },
+                    {
+                        id: 'user-accuracy-fill',
+                        type: 'fill',
+                        source: 'user_accuracy',
+                        paint: {
+                            'fill-color': '#60a5fa',
+                            'fill-opacity': 0.15
+                        }
+                    },
+                    {
+                        id: 'user-accuracy-line',
+                        type: 'line',
+                        source: 'user_accuracy',
+                        paint: {
+                            'line-color': '#1d4ed8',
+                            'line-width': 1
+                        }
+                    },
+                    {
+                        id: 'user-location-point',
+                        type: 'circle',
+                        source: 'user_location',
+                        paint: {
+                            'circle-radius': 6,
+                            'circle-color': '#1d4ed8',
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#ffffff'
+                        }
+                    }
+                ]
+            };
+        }
+
+        function enrichFeature(feature, index) {
+            const props = feature.properties || {};
+            const out = {
+                ...feature,
+                id: props.tree_id ?? index,
+                properties: {
+                    ...props,
+                    search_blob: [props.common_name, props.scientific_name, props.family, props.location]
+                        .filter(Boolean)
+                        .join(' ')
+                        .toLowerCase()
+                }
+            };
+
+            GROUP_DEFS.forEach((group) => {
+                out.properties[`group_${group.key}`] = group.match(props) ? 1 : 0;
             });
 
-            const popup = buildPopup(props);
-            marker.bindPopup(popup);
-            marker.bindTooltip(props.common_name || '', {
-                permanent: true,
-                direction: 'top',
-                offset: [0, -6],
-                className: 'tree-label'
+            return out;
+        }
+
+        function syncDataToMap() {
+            if (!mapReady || !dataReady) return;
+
+            const source = map.getSource('trees');
+            if (source) {
+                source.setData({ type: 'FeatureCollection', features: trees });
+            }
+
+            const bounds = new maplibregl.LngLatBounds();
+            trees.forEach((feature) => bounds.extend(feature.geometry.coordinates));
+            map.fitBounds(bounds, { padding: 40, duration: 0 });
+            applyLayerFilter();
+        }
+
+        function bindMapInteractions() {
+            const openPopup = (event) => {
+                const feature = event.features && event.features[0];
+                if (!feature) return;
+                const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '320px' })
+                    .setLngLat(event.lngLat)
+                    .setHTML(buildPopup(feature.properties))
+                    .addTo(map);
+                popup.on('open', () => {
+                    if (window.innerWidth <= MOBILE_BREAKPOINT) toggleSidebar(false);
+                });
+            };
+
+            ['trees-circles', 'trees-labels'].forEach((layerId) => {
+                map.on('click', layerId, openPopup);
+                map.on('mouseenter', layerId, () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+                map.on('mouseleave', layerId, () => {
+                    map.getCanvas().style.cursor = '';
+                });
             });
-            return marker;
         }
 
         function buildPopup(props) {
@@ -261,8 +476,10 @@
             const condition = props.condition ? `Condition: ${props.condition}` : null;
             const location = props.location ? `Location: ${props.location}` : null;
 
-            const info = [condition, height, dbh, location].filter(Boolean)
-                .map(v => `<span>${v}</span>`).join('');
+            const info = [condition, height, dbh, location]
+                .filter(Boolean)
+                .map((v) => `<span>${v}</span>`)
+                .join('');
 
             return `
                 <div class="popup-title">${props.common_name || 'Unknown'}</div>
@@ -275,69 +492,123 @@
         }
 
         function renderFamilyFilters(families) {
-            familyFiltersContainer.innerHTML = families.map(f => `<span class="chip" data-family="${f}">${f}</span>`).join('');
+            familyFiltersContainer.innerHTML = families.map((f) => `<span class="chip" data-family="${f}">${f}</span>`).join('');
         }
 
         function renderGroupFilters(groups) {
-            groupFiltersContainer.innerHTML = groups.map(g => `<span class="chip" data-group="${g.key}">${g.label}</span>`).join('');
+            groupFiltersContainer.innerHTML = groups.map((g) => `<span class="chip" data-group="${g.key}">${g.label}</span>`).join('');
         }
 
         function renderConditionFilters(conditions) {
-            conditionFiltersContainer.innerHTML = conditions.map(c => `<span class="chip" data-condition="${c}">${c}</span>`).join('');
+            conditionFiltersContainer.innerHTML = conditions.map((c) => `<span class="chip" data-condition="${c}">${c}</span>`).join('');
+        }
+
+        function passesFilters(props) {
+            if (selectedFamilies.size && !selectedFamilies.has(props.family)) return false;
+
+            if (selectedGroups.size) {
+                let matchesGroup = false;
+                selectedGroups.forEach((groupKey) => {
+                    if (props[`group_${groupKey}`] === 1) matchesGroup = true;
+                });
+                if (!matchesGroup) return false;
+            }
+
+            if (selectedConditions.size && !selectedConditions.has(props.condition)) return false;
+
+            if (minHeight !== null && (props.height_ft ?? Infinity) < minHeight) return false;
+            if (maxHeight !== null && (props.height_ft ?? -Infinity) > maxHeight) return false;
+            if (minDbh !== null && (props.dbh_in ?? Infinity) < minDbh) return false;
+            if (maxDbh !== null && (props.dbh_in ?? -Infinity) > maxDbh) return false;
+
+            if (searchQuery) {
+                const haystack = props.search_blob || '';
+                if (!haystack.includes(searchQuery)) return false;
+            }
+
+            return true;
         }
 
         function getFilteredIndices() {
-            const query = searchQuery.toLowerCase();
             const results = [];
-
             trees.forEach((feature, index) => {
-                const props = feature.properties;
-                if (selectedFamilies.size && !selectedFamilies.has(props.family)) return;
-
-                if (selectedGroups.size) {
-                    let ok = false;
-                    GROUP_DEFS.forEach(g => {
-                        if (selectedGroups.has(g.key) && g.match(props)) ok = true;
-                    });
-                    if (!ok) return;
-                }
-
-                if (selectedConditions.size && !selectedConditions.has(props.condition)) return;
-
-                if (minHeight !== null && (props.height_ft ?? Infinity) < minHeight) return;
-                if (maxHeight !== null && (props.height_ft ?? -Infinity) > maxHeight) return;
-                if (minDbh !== null && (props.dbh_in ?? Infinity) < minDbh) return;
-                if (maxDbh !== null && (props.dbh_in ?? -Infinity) > maxDbh) return;
-
-
-                if (query) {
-                    const haystack = [props.common_name, props.scientific_name, props.family, props.location]
-                        .filter(Boolean)
-                        .join(' ') 
-                        .toLowerCase();
-                    if (!haystack.includes(query)) return;
-                }
-                results.push(index);
+                if (passesFilters(feature.properties)) results.push(index);
             });
             return results;
         }
 
-        function updateDisplay() {
-            const filtered = getFilteredIndices();
-            visibleCount.textContent = filtered.length;
-            lastVisibleIndices = filtered;
+        function buildLayerFilterExpression() {
+            const clauses = [];
 
-            const visibleSet = new Set(filtered);
-            markers.forEach((m, i) => {
-                if (visibleSet.has(i)) {
-                    m.addTo(map);
-                } else {
-                    map.removeLayer(m);
-                }
+            if (selectedFamilies.size) {
+                clauses.push([
+                    'in',
+                    ['coalesce', ['get', 'family'], ''],
+                    ['literal', [...selectedFamilies]]
+                ]);
+            }
+
+            if (selectedGroups.size) {
+                const groupClauses = [...selectedGroups].map((groupKey) => ['==', ['get', `group_${groupKey}`], 1]);
+                clauses.push(groupClauses.length === 1 ? groupClauses[0] : ['any', ...groupClauses]);
+            }
+
+            if (selectedConditions.size) {
+                clauses.push([
+                    'in',
+                    ['coalesce', ['get', 'condition'], ''],
+                    ['literal', [...selectedConditions]]
+                ]);
+            }
+
+            if (minHeight !== null) {
+                clauses.push(['any', ['!', ['has', 'height_ft']], ['>=', ['to-number', ['get', 'height_ft']], minHeight]]);
+            }
+
+            if (maxHeight !== null) {
+                clauses.push(['any', ['!', ['has', 'height_ft']], ['<=', ['to-number', ['get', 'height_ft']], maxHeight]]);
+            }
+
+            if (minDbh !== null) {
+                clauses.push(['any', ['!', ['has', 'dbh_in']], ['>=', ['to-number', ['get', 'dbh_in']], minDbh]]);
+            }
+
+            if (maxDbh !== null) {
+                clauses.push(['any', ['!', ['has', 'dbh_in']], ['<=', ['to-number', ['get', 'dbh_in']], maxDbh]]);
+            }
+
+            if (searchQuery) {
+                clauses.push(['>=', ['index-of', searchQuery, ['coalesce', ['get', 'search_blob'], '']], 0]);
+            }
+
+            if (!clauses.length) return null;
+            return ['all', ...clauses];
+        }
+
+        function applyLayerFilter() {
+            if (!mapReady) return;
+            const filterExpr = buildLayerFilterExpression();
+            ['trees-circles', 'trees-labels'].forEach((layerId) => {
+                if (map.getLayer(layerId)) map.setFilter(layerId, filterExpr);
             });
+        }
 
-            emptyState.style.display = filtered.length ? 'none' : 'block';
-            refreshLabels();
+        function updateDisplay() {
+            if (!dataReady) return;
+
+            const filteredIndices = getFilteredIndices();
+            visibleCount.textContent = filteredIndices.length;
+            emptyState.style.display = filteredIndices.length ? 'none' : 'block';
+            applyLayerFilter();
+        }
+
+        function scheduleUpdateDisplay() {
+            if (pendingUpdate) return;
+            pendingUpdate = true;
+            requestAnimationFrame(() => {
+                pendingUpdate = false;
+                updateDisplay();
+            });
         }
 
         familyFiltersContainer.addEventListener('click', (e) => {
@@ -351,7 +622,7 @@
                 selectedFamilies.add(family);
                 chip.classList.add('active');
             }
-            updateDisplay();
+            scheduleUpdateDisplay();
         });
 
         groupFiltersContainer.addEventListener('click', (e) => {
@@ -365,7 +636,7 @@
                 selectedGroups.add(group);
                 chip.classList.add('active');
             }
-            updateDisplay();
+            scheduleUpdateDisplay();
         });
 
         conditionFiltersContainer.addEventListener('click', (e) => {
@@ -379,46 +650,49 @@
                 selectedConditions.add(condition);
                 chip.classList.add('active');
             }
-            updateDisplay();
+            scheduleUpdateDisplay();
         });
 
         clearFiltersBtn.addEventListener('click', () => {
             selectedFamilies.clear();
             selectedGroups.clear();
             selectedConditions.clear();
-            document.querySelectorAll('.chip').forEach(chip => chip.classList.remove('active'));
+            document.querySelectorAll('.chip').forEach((chip) => chip.classList.remove('active'));
             searchInput.value = '';
             searchQuery = '';
             minHeightInput.value = '';
             maxHeightInput.value = '';
             minDbhInput.value = '';
             maxDbhInput.value = '';
-            minHeight = maxHeight = minDbh = maxDbh = null;
-            updateDisplay();
+            minHeight = null;
+            maxHeight = null;
+            minDbh = null;
+            maxDbh = null;
+            scheduleUpdateDisplay();
         });
 
         let searchTimeout;
         searchInput.addEventListener('input', (e) => {
-            const value = e.target.value.trim();
+            const value = e.target.value.trim().toLowerCase();
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 searchQuery = value;
-                updateDisplay();
+                scheduleUpdateDisplay();
             }, 200);
         });
 
         function parseNumberInput(el) {
-            const v = parseFloat(el.value);
+            const v = Number.parseFloat(el.value);
             return Number.isFinite(v) ? v : null;
         }
 
-        [minHeightInput, maxHeightInput, minDbhInput, maxDbhInput].forEach(el => {
+        [minHeightInput, maxHeightInput, minDbhInput, maxDbhInput].forEach((el) => {
             el.addEventListener('input', () => {
                 minHeight = parseNumberInput(minHeightInput);
                 maxHeight = parseNumberInput(maxHeightInput);
                 minDbh = parseNumberInput(minDbhInput);
                 maxDbh = parseNumberInput(maxDbhInput);
-                updateDisplay();
+                scheduleUpdateDisplay();
             });
         });
 
@@ -427,15 +701,51 @@
             locationStatus.classList.toggle('error', !!isError);
         }
 
+        let pendingUserLocation = null;
+
+        function applyUserLocationToMap() {
+            if (!mapReady) return;
+
+            const locationSource = map.getSource('user_location');
+            const accuracySource = map.getSource('user_accuracy');
+            if (!locationSource || !accuracySource) return;
+
+            if (!pendingUserLocation) {
+                locationSource.setData(emptyFeatureCollection);
+                accuracySource.setData(emptyFeatureCollection);
+                return;
+            }
+
+            const { lon, lat, accuracy } = pendingUserLocation;
+            const point = {
+                type: 'FeatureCollection',
+                features: [
+                    {
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [lon, lat] },
+                        properties: {}
+                    }
+                ]
+            };
+
+            const accuracyPoly = {
+                type: 'FeatureCollection',
+                features: [
+                    {
+                        type: 'Feature',
+                        geometry: createAccuracyPolygon(lon, lat, accuracy, 64),
+                        properties: {}
+                    }
+                ]
+            };
+
+            locationSource.setData(point);
+            accuracySource.setData(accuracyPoly);
+        }
+
         function clearUserLocation() {
-            if (userLocationMarker) {
-                map.removeLayer(userLocationMarker);
-                userLocationMarker = null;
-            }
-            if (userAccuracyCircle) {
-                map.removeLayer(userAccuracyCircle);
-                userAccuracyCircle = null;
-            }
+            pendingUserLocation = null;
+            applyUserLocationToMap();
             clearLocationBtn.style.display = 'none';
             setLocationStatus('');
         }
@@ -444,38 +754,13 @@
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
             const accuracy = position.coords.accuracy || 0;
-            const latlng = L.latLng(lat, lon);
 
-            if (!userLocationMarker) {
-                userLocationMarker = L.circleMarker(latlng, {
-                    radius: 6,
-                    color: '#1d4ed8',
-                    fillColor: '#1d4ed8',
-                    weight: 2,
-                    fillOpacity: 0.9
-                }).addTo(map);
-            } else {
-                userLocationMarker.setLatLng(latlng);
-            }
-
-            if (!userAccuracyCircle) {
-                userAccuracyCircle = L.circle(latlng, {
-                    radius: accuracy,
-                    color: '#1d4ed8',
-                    weight: 1,
-                    fillColor: '#60a5fa',
-                    fillOpacity: 0.15
-                }).addTo(map);
-            } else {
-                userAccuracyCircle.setLatLng(latlng);
-                userAccuracyCircle.setRadius(accuracy);
-            }
-
-            userLocationMarker.bringToFront();
-            map.flyTo(latlng, Math.max(18, map.getZoom()));
+            pendingUserLocation = { lat, lon, accuracy };
+            applyUserLocationToMap();
+            map.easeTo({ center: [lon, lat], zoom: Math.max(18, map.getZoom()), duration: 700 });
             clearLocationBtn.style.display = 'inline-block';
             setLocationStatus(`Location accuracy: ${Math.round(accuracy)} m`);
-            if (window.innerWidth <= 900) toggleSidebar(false);
+            if (window.innerWidth <= MOBILE_BREAKPOINT) toggleSidebar(false);
         }
 
         function requestUserLocation() {
@@ -501,106 +786,99 @@
 
         locateBtn.addEventListener('click', requestUserLocation);
         mobileLocateBtn.addEventListener('click', requestUserLocation);
-
         clearLocationBtn.addEventListener('click', clearUserLocation);
 
-
         sidebarToggle.addEventListener('click', () => toggleSidebar());
+
         function toggleSidebar(forceOpen) {
             const open = forceOpen !== undefined ? forceOpen : !sidebar.classList.contains('open');
             sidebar.classList.toggle('open', open);
-            sidebarBackdrop.classList.toggle('visible', open && window.innerWidth <= 900);
+            sidebarBackdrop.classList.toggle('visible', open && window.innerWidth <= MOBILE_BREAKPOINT);
             sidebarToggle.textContent = open ? 'Close' : 'Menu';
-            if (window.innerWidth <= 900) {
-                mobileLocateBtn.style.display = open ? 'none' : 'block';
-            }
 
-            if (window.innerWidth <= 900) {
+            if (window.innerWidth <= MOBILE_BREAKPOINT) {
+                mobileLocateBtn.style.display = open ? 'none' : 'block';
                 setMapInteractivity(!open);
             }
         }
 
-        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
         sidebarBackdrop.addEventListener('click', () => toggleSidebar(false));
 
         collapseBtn.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             collapseBtn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
-            setTimeout(() => map.invalidateSize(), 300);
+            setTimeout(() => map.resize(), 300);
         });
 
-        // Show labels only when zoomed in to reduce clutter
-        map.on('zoomend moveend', refreshLabels);
-
         function setMapInteractivity(enabled) {
-            const methods = [
-                ['dragging', 'enable', 'disable'],
-                ['scrollWheelZoom', 'enable', 'disable'],
-                ['doubleClickZoom', 'enable', 'disable'],
-                ['touchZoom', 'enable', 'disable'],
-                ['boxZoom', 'enable', 'disable'],
-                ['keyboard', 'enable', 'disable'],
-            ];
-            methods.forEach(([name, en, dis]) => {
+            const methods = ['dragPan', 'scrollZoom', 'doubleClickZoom', 'touchZoomRotate', 'boxZoom', 'keyboard'];
+            methods.forEach((name) => {
                 if (map[name]) {
-                    map[name][enabled ? en : dis]();
+                    if (enabled) map[name].enable();
+                    else map[name].disable();
                 }
             });
         }
 
         function syncMobileControls() {
-            if (window.innerWidth <= 900) {
+            if (window.innerWidth <= MOBILE_BREAKPOINT) {
                 mobileLocateBtn.style.display = sidebar.classList.contains('open') ? 'none' : 'block';
             } else {
                 mobileLocateBtn.style.display = 'none';
             }
         }
 
-        // Initial label toggle
-        map.whenReady(() => {
-            refreshLabels();
-            syncMobileControls();
-        });
-
-        // Prevent touch scroll trapping when sidebar open
-        ['touchmove', 'wheel'].forEach(evt => {
-            sidebar.addEventListener(evt, e => {
-                if (!sidebar.classList.contains('open') && window.innerWidth <= 900) return;
+        ['touchmove', 'wheel'].forEach((evt) => {
+            sidebar.addEventListener(evt, (e) => {
+                if (!sidebar.classList.contains('open') && window.innerWidth <= MOBILE_BREAKPOINT) return;
                 e.stopPropagation();
             }, { passive: false });
         });
 
-        function refreshLabels() {
-            const showLabels = map.getZoom() >= LABEL_ZOOM;
-            mapEl.classList.toggle('show-labels', showLabels);
-
-            // Clear visibility
-            markers.forEach(m => {
-                const el = m.getTooltip() && m.getTooltip().getElement();
-                if (el) el.classList.remove('visible');
-            });
-
-            if (!showLabels || !lastVisibleIndices.length) return;
-
-            const occupied = new Set();
-            const cellSize = 40; // px grid to reduce collisions
-
-            lastVisibleIndices.forEach(i => {
-                const marker = markers[i];
-                if (!map.hasLayer(marker)) return;
-                const pt = map.latLngToContainerPoint(marker.getLatLng());
-                const key = `${Math.round(pt.x / cellSize)}_${Math.round(pt.y / cellSize)}`;
-                if (occupied.has(key)) return;
-                occupied.add(key);
-                const el = marker.getTooltip() && marker.getTooltip().getElement();
-                if (el) el.classList.add('visible');
-            });
-        }
-
         window.addEventListener('resize', () => {
-            map.invalidateSize();
+            map.resize();
             syncMobileControls();
         });
+
+        function applyBasemapVisibility() {
+            if (!mapReady) return;
+            const showCarto = activeBasemap === 'cartoLight';
+            map.setLayoutProperty('basemap-carto', 'visibility', showCarto ? 'visible' : 'none');
+            map.setLayoutProperty('basemap-esri', 'visibility', showCarto ? 'none' : 'visible');
+        }
+
+        function toRadians(deg) {
+            return deg * (Math.PI / 180);
+        }
+
+        function toDegrees(rad) {
+            return rad * (180 / Math.PI);
+        }
+
+        function createAccuracyPolygon(lon, lat, radiusMeters, steps) {
+            const earthRadius = 6371000;
+            const angularDistance = radiusMeters / earthRadius;
+            const latRad = toRadians(lat);
+            const lonRad = toRadians(lon);
+            const coords = [];
+
+            for (let i = 0; i <= steps; i += 1) {
+                const bearing = 2 * Math.PI * (i / steps);
+                const sinLat = Math.sin(latRad) * Math.cos(angularDistance) +
+                    Math.cos(latRad) * Math.sin(angularDistance) * Math.cos(bearing);
+                const outLat = Math.asin(sinLat);
+                const outLon = lonRad + Math.atan2(
+                    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latRad),
+                    Math.cos(angularDistance) - Math.sin(latRad) * Math.sin(outLat)
+                );
+                coords.push([toDegrees(outLon), toDegrees(outLat)]);
+            }
+
+            return {
+                type: 'Polygon',
+                coordinates: [coords]
+            };
+        }
     </script>
 </body>
 </html>
