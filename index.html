@@ -20,6 +20,12 @@
         .search-box { padding: 12px 16px; border-bottom: 1px solid #eee; }
         #search { width: 100%; padding: 10px 12px; border: 1px solid #dcdcdc; border-radius: 8px; font-size: 0.95rem; outline: none; }
         #search:focus { border-color: #2d5016; box-shadow: 0 0 0 2px rgba(45,80,22,0.12); }
+        .search-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .small-btn { padding: 8px 10px; border: 1px solid #dcdcdc; border-radius: 8px; background: #fff; color: #2d5016; font-size: 0.82rem; cursor: pointer; }
+        .small-btn:hover { border-color: #2d5016; }
+        .small-btn.secondary { color: #555; }
+        .location-status { margin-top: 8px; font-size: 0.8rem; color: #4b604b; min-height: 1em; }
+        .location-status.error { color: #b91c1c; }
 
         .filters-section { padding: 12px 16px; border-bottom: 1px solid #eee; }
         .filters-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -77,6 +83,11 @@
 
         <div class="search-box">
             <input type="text" id="search" placeholder="Search common name, species, family, or location" autocomplete="off">
+            <div class="search-actions">
+                <button class="small-btn" id="locateBtn" type="button">Use My Location</button>
+                <button class="small-btn secondary" id="clearLocationBtn" type="button" style="display:none">Clear Location</button>
+            </div>
+            <div class="location-status" id="locationStatus"></div>
         </div>
 
         <div class="filters-section">
@@ -150,7 +161,8 @@
         let searchQuery = '';
         let lastVisibleIndices = [];
         let minHeight = null, maxHeight = null, minDbh = null, maxDbh = null;
-        let locationQuery = '';
+        let userLocationMarker = null;
+        let userAccuracyCircle = null;
 
         const GROUP_DEFS = [
             {
@@ -187,6 +199,9 @@
         const maxHeightInput = document.getElementById('maxHeight');
         const minDbhInput = document.getElementById('minDbh');
         const maxDbhInput = document.getElementById('maxDbh');
+        const locateBtn = document.getElementById('locateBtn');
+        const clearLocationBtn = document.getElementById('clearLocationBtn');
+        const locationStatus = document.getElementById('locationStatus');
 
         fetch('trees.geojson')
             .then(r => r.json())
@@ -208,7 +223,8 @@
             })
             .catch(err => {
                 console.error('Failed to load data', err);
-                treeList.innerHTML = '<div class="no-results">Could not load trees data.</div>';
+                emptyState.style.display = 'block';
+                emptyState.textContent = 'Could not load trees data.';
             });
 
         function createMarker(feature, index) {
@@ -399,6 +415,85 @@
                 updateDisplay();
             });
         });
+
+        function setLocationStatus(message, isError = false) {
+            locationStatus.textContent = message || '';
+            locationStatus.classList.toggle('error', !!isError);
+        }
+
+        function clearUserLocation() {
+            if (userLocationMarker) {
+                map.removeLayer(userLocationMarker);
+                userLocationMarker = null;
+            }
+            if (userAccuracyCircle) {
+                map.removeLayer(userAccuracyCircle);
+                userAccuracyCircle = null;
+            }
+            clearLocationBtn.style.display = 'none';
+            setLocationStatus('');
+        }
+
+        function showUserLocation(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const accuracy = position.coords.accuracy || 0;
+            const latlng = L.latLng(lat, lon);
+
+            if (!userLocationMarker) {
+                userLocationMarker = L.circleMarker(latlng, {
+                    radius: 6,
+                    color: '#1d4ed8',
+                    fillColor: '#1d4ed8',
+                    weight: 2,
+                    fillOpacity: 0.9
+                }).addTo(map);
+            } else {
+                userLocationMarker.setLatLng(latlng);
+            }
+
+            if (!userAccuracyCircle) {
+                userAccuracyCircle = L.circle(latlng, {
+                    radius: accuracy,
+                    color: '#1d4ed8',
+                    weight: 1,
+                    fillColor: '#60a5fa',
+                    fillOpacity: 0.15
+                }).addTo(map);
+            } else {
+                userAccuracyCircle.setLatLng(latlng);
+                userAccuracyCircle.setRadius(accuracy);
+            }
+
+            userLocationMarker.bringToFront();
+            map.flyTo(latlng, Math.max(18, map.getZoom()));
+            clearLocationBtn.style.display = 'inline-block';
+            setLocationStatus(`Location accuracy: ${Math.round(accuracy)} m`);
+            if (window.innerWidth <= 900) toggleSidebar(false);
+        }
+
+        locateBtn.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                setLocationStatus('Geolocation is not supported in this browser.', true);
+                return;
+            }
+            setLocationStatus('Requesting location...');
+            navigator.geolocation.getCurrentPosition(
+                showUserLocation,
+                (error) => {
+                    if (error.code === error.PERMISSION_DENIED) {
+                        setLocationStatus('Location permission was denied.', true);
+                    } else if (error.code === error.TIMEOUT) {
+                        setLocationStatus('Location request timed out.', true);
+                    } else {
+                        setLocationStatus('Unable to retrieve your location.', true);
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+            );
+        });
+
+        clearLocationBtn.addEventListener('click', clearUserLocation);
 
 
         sidebarToggle.addEventListener('click', () => toggleSidebar());
