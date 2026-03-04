@@ -25,10 +25,10 @@
         .filters-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .filters-header h3 { font-size: 0.9rem; color: #4b604b; font-weight: 600; }
         .clear-filters { font-size: 0.8rem; color: #2d5016; cursor: pointer; text-decoration: underline; }
-        .family-filters { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
-        .family-chip { padding: 5px 10px; border: 1px solid #dcdcdc; border-radius: 14px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-        .family-chip:hover { border-color: #2d5016; }
-        .family-chip.active { background: #2d5016; color: #fff; border-color: #2d5016; }
+        .chip-row { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
+        .chip { padding: 5px 10px; border: 1px solid #dcdcdc; border-radius: 14px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .chip:hover { border-color: #2d5016; }
+        .chip.active { background: #2d5016; color: #fff; border-color: #2d5016; }
 
         .tree-list { flex: 1; overflow-y: auto; }
         .tree-item { padding: 12px 16px; border-bottom: 1px solid #f3f3f3; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: background 0.15s; }
@@ -88,10 +88,17 @@
 
         <div class="filters-section">
             <div class="filters-header">
-                <h3>Filter by Family</h3>
+                <h3>Filter by Group</h3>
                 <span class="clear-filters" id="clearFilters">Clear</span>
             </div>
-            <div class="family-filters" id="familyFilters"></div>
+            <div class="chip-row" id="groupFilters"></div>
+        </div>
+
+        <div class="filters-section">
+            <div class="filters-header">
+                <h3>Filter by Family</h3>
+            </div>
+            <div class="chip-row" id="familyFilters"></div>
         </div>
 
         <div class="tree-list" id="treeList"></div>
@@ -112,11 +119,33 @@
         let trees = [];
         let markers = [];
         let selectedFamilies = new Set();
+        let selectedGroups = new Set();
         let searchQuery = '';
         let lastVisibleIndices = [];
 
+        const GROUP_DEFS = [
+            {
+                key: 'gymnosperms',
+                label: 'Gymnosperms',
+                match: (props) => {
+                    const fam = (props.family || '').toLowerCase();
+                    return ['pinaceae','cupressaceae','taxaceae','arachariaceae','araucariaceae','podocarpaceae','ginkgoaceae','cycadaceae','zamiaceae','ephedraceae'].includes(fam);
+                }
+            },
+            {
+                key: 'figs',
+                label: 'Figs',
+                match: (props) => {
+                    const sci = (props.scientific_name || '').toLowerCase();
+                    const common = (props.common_name || '').toLowerCase();
+                    return sci.startsWith('ficus ') || common.includes('fig');
+                }
+            }
+        ];
+
         const searchInput = document.getElementById('search');
         const familyFiltersContainer = document.getElementById('familyFilters');
+        const groupFiltersContainer = document.getElementById('groupFilters');
         const treeList = document.getElementById('treeList');
         const visibleCount = document.getElementById('visible-count');
         const totalCount = document.getElementById('total-count');
@@ -134,6 +163,7 @@
 
                 const families = [...new Set(trees.map(f => f.properties.family).filter(Boolean))].sort();
                 renderFamilyFilters(families);
+                renderGroupFilters(GROUP_DEFS);
 
                 const bounds = L.latLngBounds(trees.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]));
                 map.fitBounds(bounds.pad(0.05));
@@ -150,7 +180,7 @@
             const [lon, lat] = feature.geometry.coordinates;
             const props = feature.properties;
             const marker = L.circleMarker([lat, lon], {
-                radius: 6,
+                radius: 4,
                 color: '#2d5016',
                 weight: 1,
                 fillColor: '#2d5016',
@@ -195,7 +225,11 @@
         }
 
         function renderFamilyFilters(families) {
-            familyFiltersContainer.innerHTML = families.map(f => `<span class="family-chip" data-family="${f}">${f}</span>`).join('');
+            familyFiltersContainer.innerHTML = families.map(f => `<span class="chip" data-family="${f}">${f}</span>`).join('');
+        }
+
+        function renderGroupFilters(groups) {
+            groupFiltersContainer.innerHTML = groups.map(g => `<span class="chip" data-group="${g.key}">${g.label}</span>`).join('');
         }
 
         function getFilteredIndices() {
@@ -205,6 +239,14 @@
             trees.forEach((feature, index) => {
                 const props = feature.properties;
                 if (selectedFamilies.size && !selectedFamilies.has(props.family)) return;
+
+                if (selectedGroups.size) {
+                    let ok = false;
+                    GROUP_DEFS.forEach(g => {
+                        if (selectedGroups.has(g.key) && g.match(props)) ok = true;
+                    });
+                    if (!ok) return;
+                }
 
                 if (query) {
                     const haystack = [props.common_name, props.scientific_name, props.family, props.location]
@@ -273,7 +315,7 @@
         }
 
         familyFiltersContainer.addEventListener('click', (e) => {
-            const chip = e.target.closest('.family-chip');
+            const chip = e.target.closest('[data-family]');
             if (!chip) return;
             const family = chip.dataset.family;
             if (selectedFamilies.has(family)) {
@@ -286,9 +328,24 @@
             updateDisplay();
         });
 
+        groupFiltersContainer.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-group]');
+            if (!chip) return;
+            const group = chip.dataset.group;
+            if (selectedGroups.has(group)) {
+                selectedGroups.delete(group);
+                chip.classList.remove('active');
+            } else {
+                selectedGroups.add(group);
+                chip.classList.add('active');
+            }
+            updateDisplay();
+        });
+
         clearFiltersBtn.addEventListener('click', () => {
             selectedFamilies.clear();
-            document.querySelectorAll('.family-chip').forEach(chip => chip.classList.remove('active'));
+            selectedGroups.clear();
+            document.querySelectorAll('.chip').forEach(chip => chip.classList.remove('active'));
             searchInput.value = '';
             searchQuery = '';
             updateDisplay();
