@@ -259,7 +259,7 @@
             style: createMapStyle(),
             center: [-120.6619, 35.3004],
             zoom: 15.5,
-            maxZoom: 22,
+            maxZoom: 21,
             dragRotate: false,
             touchPitch: false
         });
@@ -361,11 +361,11 @@
                         id: 'trees-labels',
                         type: 'symbol',
                         source: 'trees',
-                        minzoom: 14,
+                        minzoom: 19,
                         layout: {
                             'text-field': ['coalesce', ['get', 'common_name'], ''],
                             'text-font': ['Noto Sans Regular'],
-                            'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 18, 12.5, 20, 14],
+                            'text-size': ['interpolate', ['linear'], ['zoom'], 19, 11, 21, 14],
                             'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
                             'text-radial-offset': 0.7,
                             'text-justify': 'auto',
