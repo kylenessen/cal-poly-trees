@@ -25,7 +25,7 @@
         .filters-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .filters-header h3 { font-size: 0.9rem; color: #4b604b; font-weight: 600; }
         .clear-filters { font-size: 0.8rem; color: #2d5016; cursor: pointer; text-decoration: underline; }
-        .chip-row { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
+        .chip-row { display: flex; flex-wrap: wrap; gap: 6px; max-height: none; }
         .chip { padding: 5px 10px; border: 1px solid #dcdcdc; border-radius: 14px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
         .chip:hover { border-color: #2d5016; }
         .chip.active { background: #2d5016; color: #fff; border-color: #2d5016; }
@@ -99,11 +99,19 @@
         const MAX_LIST_ITEMS = 400;
         const LABEL_ZOOM = 18;
         const mapEl = document.getElementById('map');
-        const map = L.map('map', { preferCanvas: true, zoomControl: true });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 22,
-            attribution: '&copy; OpenStreetMap &copy; CARTO'
-        }).addTo(map);
+        const baseLayers = {
+            'Carto Light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 22,
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }),
+            'Esri World Imagery': L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 22,
+                attribution: 'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+            })
+        };
+
+        const map = L.map('map', { preferCanvas: true, zoomControl: true, layers: [baseLayers['Carto Light']] });
+        L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
 
         let trees = [];
         let markers = [];
