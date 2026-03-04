@@ -1,6 +1,6 @@
 {
-  "label": "before-leaflet",
-  "dateIso": "2026-03-04T19:12:36.341Z",
+  "label": "after-maplibre",
+  "dateIso": "2026-03-04T19:12:53.514Z",
   "environment": {
     "platform": "darwin",
     "nodeVersion": "v20.14.0",
@@ -14,247 +14,247 @@
   },
   "summary": {
     "readyMs": {
-      "mean": 1658.5888165999993,
-      "median": 1626.260624999999,
-      "min": 1604.998125,
-      "max": 1737.8513749999984,
+      "mean": 681.3163997999999,
+      "median": 671.2218329999996,
+      "min": 661.6626249999999,
+      "max": 709.5492079999999,
       "samples": [
-        1709.8138330000002,
-        1604.998125,
-        1614.020124999999,
-        1626.260624999999,
-        1737.8513749999984
+        709.5492079999999,
+        697.6642080000001,
+        666.484125,
+        661.6626249999999,
+        671.2218329999996
       ]
     },
     "searchOakMs": {
-      "mean": 452.6,
-      "median": 450,
-      "min": 430,
-      "max": 485,
+      "mean": 219.4,
+      "median": 219,
+      "min": 217,
+      "max": 223,
       "samples": [
-        440,
-        450,
-        485,
-        458,
-        430
+        220,
+        223,
+        218,
+        219,
+        217
       ]
     },
     "familyToggleMs": {
-      "mean": 228.4,
-      "median": 228,
-      "min": 222,
-      "max": 233,
+      "mean": 24.4,
+      "median": 24,
+      "min": 23,
+      "max": 26,
       "samples": [
-        222,
-        232,
-        233,
-        227,
-        228
+        24,
+        26,
+        23,
+        24,
+        25
       ]
     },
     "heightMin20Ms": {
-      "mean": 231.2,
-      "median": 238,
-      "min": 210,
-      "max": 241,
+      "mean": 24.2,
+      "median": 24,
+      "min": 24,
+      "max": 25,
       "samples": [
-        227,
-        240,
-        238,
-        210,
-        241
+        24,
+        25,
+        24,
+        24,
+        24
       ]
     },
     "clearAllMs": {
-      "mean": 945.8,
-      "median": 954,
-      "min": 912,
-      "max": 968,
+      "mean": 25.6,
+      "median": 26,
+      "min": 25,
+      "max": 26,
       "samples": [
-        958,
-        968,
-        937,
-        912,
-        954
+        25,
+        25,
+        26,
+        26,
+        26
       ]
     },
     "domNodeCount": {
-      "mean": 6814,
-      "median": 6814,
-      "min": 6814,
-      "max": 6814,
+      "mean": 150,
+      "median": 150,
+      "min": 150,
+      "max": 150,
       "samples": [
-        6814,
-        6814,
-        6814,
-        6814,
-        6814
+        150,
+        150,
+        150,
+        150,
+        150
       ]
     }
   },
   "runs": [
     {
-      "readyMs": 1709.8138330000002,
+      "readyMs": 709.5492079999999,
       "totalTrees": 6624,
       "finalVisible": 6624,
-      "domNodeCount": 6814,
+      "domNodeCount": 150,
       "heapUsedBytes": null,
       "actions": {
         "searchOak": {
           "before": 6624,
           "after": 955,
           "changed": true,
-          "durationMs": 440
+          "durationMs": 220
         },
         "familyToggle": {
           "before": 6624,
           "after": 5,
           "changed": true,
-          "durationMs": 222
+          "durationMs": 24
         },
         "heightMin20": {
           "before": 6624,
           "after": 3872,
           "changed": true,
-          "durationMs": 227
+          "durationMs": 24
         },
         "clearAll": {
           "before": 3872,
           "after": 6624,
           "changed": true,
-          "durationMs": 958
+          "durationMs": 25
         }
       }
     },
     {
-      "readyMs": 1604.998125,
+      "readyMs": 697.6642080000001,
       "totalTrees": 6624,
       "finalVisible": 6624,
-      "domNodeCount": 6814,
+      "domNodeCount": 150,
       "heapUsedBytes": null,
       "actions": {
         "searchOak": {
           "before": 6624,
           "after": 955,
           "changed": true,
-          "durationMs": 450
+          "durationMs": 223
         },
         "familyToggle": {
           "before": 6624,
           "after": 5,
           "changed": true,
-          "durationMs": 232
+          "durationMs": 26
         },
         "heightMin20": {
           "before": 6624,
           "after": 3872,
           "changed": true,
-          "durationMs": 240
+          "durationMs": 25
         },
         "clearAll": {
           "before": 3872,
           "after": 6624,
           "changed": true,
-          "durationMs": 968
+          "durationMs": 25
         }
       }
     },
     {
-      "readyMs": 1614.020124999999,
+      "readyMs": 666.484125,
       "totalTrees": 6624,
       "finalVisible": 6624,
-      "domNodeCount": 6814,
+      "domNodeCount": 150,
       "heapUsedBytes": null,
       "actions": {
         "searchOak": {
           "before": 6624,
           "after": 955,
           "changed": true,
-          "durationMs": 485
+          "durationMs": 218
         },
         "familyToggle": {
           "before": 6624,
           "after": 5,
           "changed": true,
-          "durationMs": 233
+          "durationMs": 23
         },
         "heightMin20": {
           "before": 6624,
           "after": 3872,
           "changed": true,
-          "durationMs": 238
+          "durationMs": 24
         },
         "clearAll": {
           "before": 3872,
           "after": 6624,
           "changed": true,
-          "durationMs": 937
+          "durationMs": 26
         }
       }
     },
     {
-      "readyMs": 1626.260624999999,
+      "readyMs": 661.6626249999999,
       "totalTrees": 6624,
       "finalVisible": 6624,
-      "domNodeCount": 6814,
+      "domNodeCount": 150,
       "heapUsedBytes": null,
       "actions": {
         "searchOak": {
           "before": 6624,
           "after": 955,
           "changed": true,
-          "durationMs": 458
+          "durationMs": 219
         },
         "familyToggle": {
           "before": 6624,
           "after": 5,
           "changed": true,
-          "durationMs": 227
+          "durationMs": 24
         },
         "heightMin20": {
           "before": 6624,
           "after": 3872,
           "changed": true,
-          "durationMs": 210
+          "durationMs": 24
         },
         "clearAll": {
           "before": 3872,
           "after": 6624,
           "changed": true,
-          "durationMs": 912
+          "durationMs": 26
         }
       }
     },
     {
-      "readyMs": 1737.8513749999984,
+      "readyMs": 671.2218329999996,
       "totalTrees": 6624,
       "finalVisible": 6624,
-      "domNodeCount": 6814,
+      "domNodeCount": 150,
       "heapUsedBytes": null,
       "actions": {
         "searchOak": {
           "before": 6624,
           "after": 955,
           "changed": true,
-          "durationMs": 430
+          "durationMs": 217
         },
         "familyToggle": {
           "before": 6624,
           "after": 5,
           "changed": true,
-          "durationMs": 228
+          "durationMs": 25
         },
         "heightMin20": {
           "before": 6624,
           "after": 3872,
           "changed": true,
-          "durationMs": 241
+          "durationMs": 24
         },
         "clearAll": {
           "before": 3872,
           "after": 6624,
           "changed": true,
-          "durationMs": 954
+          "durationMs": 26
         }
       }
     }

@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 
 function parseArgs(argv) {
   const args = {
@@ -13,6 +13,7 @@ function parseArgs(argv) {
     port: 4173,
     warmup: 1,
     headless: true,
+    browser: 'firefox',
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -35,6 +36,9 @@ function parseArgs(argv) {
       i += 1;
     } else if (key === '--headed') {
       args.headless = false;
+    } else if (key === '--browser' && next) {
+      args.browser = next;
+      i += 1;
     }
   }
 
@@ -79,6 +83,12 @@ function stats(values) {
   const min = sorted[0];
   const max = sorted[sorted.length - 1];
   return { mean, median, min, max, samples: values };
+}
+
+function selectBrowserType(name) {
+  if (name === 'chromium') return chromium;
+  if (name === 'webkit') return webkit;
+  return firefox;
 }
 
 async function measureScenario(page, baseUrl) {
@@ -196,7 +206,8 @@ async function run() {
   try {
     await waitForServer(baseUrl);
 
-    const browser = await chromium.launch({
+    const browserType = selectBrowserType(args.browser);
+    const browser = await browserType.launch({
       headless: args.headless,
       args: ['--enable-precise-memory-info'],
     });
@@ -231,6 +242,7 @@ async function run() {
         nodeVersion: process.version,
         runs: args.runs,
         warmup: args.warmup,
+        browser: args.browser,
         viewport: { width: 1440, height: 900 },
       },
       summary: {

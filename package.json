@@ -1,13 +1,13 @@
 {
   "name": "cal-poly-trees",
   "version": "1.0.0",
-  "description": "Static Leaflet map built from the 2015 ArborPro campus tree inventory KMZ. It mirrors the Cuesta College tree map UX (search, family filters, list + map), scaled for 6,624 trees.",
+  "description": "Static MapLibre GL JS map for the 2015 ArborPro Cal Poly campus tree inventory.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "bench:map": "node scripts/benchmark-map.mjs",
-    "bench:map:before": "node scripts/benchmark-map.mjs --label before-leaflet --output perf/before-leaflet.json --runs 5 --warmup 1",
-    "bench:map:after": "node scripts/benchmark-map.mjs --label after-maplibre --output perf/after-maplibre.json --runs 5 --warmup 1"
+    "bench:map": "node scripts/benchmark-map.mjs --browser firefox",
+    "bench:map:before": "node scripts/benchmark-map.mjs --browser firefox --label before-leaflet --output perf/before-leaflet.json --runs 5 --warmup 1",
+    "bench:map:after": "node scripts/benchmark-map.mjs --browser firefox --label after-maplibre --output perf/after-maplibre.json --runs 5 --warmup 1"
   },
   "keywords": [],
   "author": "",
