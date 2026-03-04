@@ -89,13 +89,6 @@
 
         <div class="filters-section">
             <div class="filters-header">
-                <h3>Filter by Family</h3>
-            </div>
-            <div class="chip-row" id="familyFilters"></div>
-        </div>
-
-        <div class="filters-section">
-            <div class="filters-header">
                 <h3>Filter by Condition</h3>
             </div>
             <div class="chip-row" id="conditionFilters"></div>
@@ -123,9 +116,9 @@
 
         <div class="filters-section">
             <div class="filters-header">
-                <h3>Filter by Location</h3>
+                <h3>Filter by Family</h3>
             </div>
-            <input type="text" id="locationSearch" class="text-input" placeholder="Enter building or area">
+            <div class="chip-row" id="familyFilters"></div>
         </div>
 
         <div class="no-results" id="emptyState" style="display:none">No trees match your filters.</div>
@@ -194,7 +187,6 @@
         const maxHeightInput = document.getElementById('maxHeight');
         const minDbhInput = document.getElementById('minDbh');
         const maxDbhInput = document.getElementById('maxDbh');
-        const locationSearchInput = document.getElementById('locationSearch');
 
         fetch('trees.geojson')
             .then(r => r.json())
@@ -295,10 +287,6 @@
                 if (minDbh !== null && (props.dbh_in ?? Infinity) < minDbh) return;
                 if (maxDbh !== null && (props.dbh_in ?? -Infinity) > maxDbh) return;
 
-                if (locationQuery) {
-                    const loc = (props.location || '').toLowerCase();
-                    if (!loc.includes(locationQuery)) return;
-                }
 
                 if (query) {
                     const haystack = [props.common_name, props.scientific_name, props.family, props.location]
@@ -383,9 +371,7 @@
             maxHeightInput.value = '';
             minDbhInput.value = '';
             maxDbhInput.value = '';
-            locationSearchInput.value = '';
             minHeight = maxHeight = minDbh = maxDbh = null;
-            locationQuery = '';
             updateDisplay();
         });
 
@@ -414,10 +400,6 @@
             });
         });
 
-        locationSearchInput.addEventListener('input', () => {
-            locationQuery = locationSearchInput.value.trim().toLowerCase();
-            updateDisplay();
-        });
 
         sidebarToggle.addEventListener('click', () => toggleSidebar());
         function toggleSidebar(forceOpen) {
