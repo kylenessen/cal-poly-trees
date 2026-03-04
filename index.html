@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cal Poly Campus Trees (2015)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; color: #1f2a1c; }
+        #map { flex: 1; height: 100%; }
+
+        .sidebar { width: 360px; max-width: 90vw; height: 100%; background: #fff; box-shadow: -2px 0 10px rgba(0,0,0,0.12); display: flex; flex-direction: column; z-index: 1000; transition: transform 0.3s; }
+        .sidebar.collapsed { transform: translateX(100%); }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid #eee; }
+        .sidebar-header h1 { font-size: 1.2rem; margin-bottom: 6px; color: #1f3b1f; }
+        .sidebar-header .meta { font-size: 0.9rem; color: #4b604b; }
+        .sidebar-header .meta span { display: inline-block; margin-right: 10px; }
+
+        .search-box { padding: 12px 16px; border-bottom: 1px solid #eee; }
+        #search { width: 100%; padding: 10px 12px; border: 1px solid #dcdcdc; border-radius: 8px; font-size: 0.95rem; outline: none; }
+        #search:focus { border-color: #2d5016; box-shadow: 0 0 0 2px rgba(45,80,22,0.12); }
+
+        .filters-section { padding: 12px 16px; border-bottom: 1px solid #eee; }
+        .filters-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .filters-header h3 { font-size: 0.9rem; color: #4b604b; font-weight: 600; }
+        .clear-filters { font-size: 0.8rem; color: #2d5016; cursor: pointer; text-decoration: underline; }
+        .family-filters { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
+        .family-chip { padding: 5px 10px; border: 1px solid #dcdcdc; border-radius: 14px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .family-chip:hover { border-color: #2d5016; }
+        .family-chip.active { background: #2d5016; color: #fff; border-color: #2d5016; }
+
+        .tree-list { flex: 1; overflow-y: auto; }
+        .tree-item { padding: 12px 16px; border-bottom: 1px solid #f3f3f3; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: background 0.15s; }
+        .tree-item:hover { background: #f9faf9; }
+        .tree-item .badge { min-width: 36px; height: 36px; border-radius: 10px; background: #e8f1e6; color: #2d5016; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        .tree-item .info { flex: 1; min-width: 0; }
+        .tree-item .name { font-weight: 600; color: #1f3b1f; margin-bottom: 4px; }
+        .tree-item .scientific { font-size: 0.88rem; color: #556655; font-style: italic; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tree-item .details { font-size: 0.78rem; color: #6f7f6f; display: flex; gap: 8px; flex-wrap: wrap; }
+        .tree-item .details span { background: #f1f4f0; padding: 2px 8px; border-radius: 10px; }
+        .no-results { padding: 20px; text-align: center; color: #8a9a8a; }
+        .truncate-note { padding: 8px 16px; font-size: 0.8rem; color: #6f7f6f; background: #f9faf9; border-top: 1px solid #eee; }
+
+        .sidebar-toggle { position: absolute; top: 12px; right: 12px; z-index: 1100; padding: 10px 14px; background: white; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 0.9rem; display: none; }
+
+        .collapse-btn { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 1001; width: 26px; height: 60px; background: white; border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; }
+
+        .leaflet-popup-content { margin: 10px 12px; line-height: 1.5; }
+        .popup-title { font-size: 1.05rem; font-weight: 700; color: #1f3b1f; margin-bottom: 4px; }
+        .popup-sci { font-style: italic; color: #445544; margin-bottom: 6px; }
+        .popup-meta { font-size: 0.9rem; color: #4b604b; }
+        .popup-meta span { display: block; margin-bottom: 4px; }
+        .popup-links a { display: inline-block; margin-right: 8px; font-size: 0.85rem; color: #2d5016; text-decoration: none; }
+        .popup-links a:hover { text-decoration: underline; }
+
+        .marker-cluster-small { background: rgba(45,80,22,0.8); }
+        .marker-cluster-small div { background: #e4f0e2; color: #1f3b1f; }
+
+        @media (max-width: 900px) {
+            .sidebar { position: absolute; right: 0; top: 0; height: 100%; transform: translateX(100%); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-toggle { display: block; }
+            .collapse-btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <button class="sidebar-toggle" id="sidebarToggle">Menu</button>
+    <button class="collapse-btn" id="collapseBtn">&#9664;</button>
+    <div id="map"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>Cal Poly Campus Trees</h1>
+            <div class="meta">
+                <span id="visible-count">0</span>/<span id="total-count">0</span> trees · Inventory: 2015 ArborPro
+            </div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Search common name, species, family, or location" autocomplete="off">
+        </div>
+
+        <div class="filters-section">
+            <div class="filters-header">
+                <h3>Filter by Family</h3>
+                <span class="clear-filters" id="clearFilters">Clear</span>
+            </div>
+            <div class="family-filters" id="familyFilters"></div>
+        </div>
+
+        <div class="tree-list" id="treeList"></div>
+        <div class="truncate-note" id="truncateNote" style="display:none"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script>
+        const MAX_LIST_ITEMS = 400;
+        const map = L.map('map', { preferCanvas: true });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20,
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
+
+        const clusterGroup = L.markerClusterGroup({
+            disableClusteringAtZoom: 19,
+            showCoverageOnHover: false,
+            spiderfyDistanceMultiplier: 1.1
+        });
+        map.addLayer(clusterGroup);
+
+        let trees = [];
+        let markers = [];
+        let selectedFamilies = new Set();
+        let searchQuery = '';
+
+        const searchInput = document.getElementById('search');
+        const familyFiltersContainer = document.getElementById('familyFilters');
+        const treeList = document.getElementById('treeList');
+        const visibleCount = document.getElementById('visible-count');
+        const totalCount = document.getElementById('total-count');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        const truncateNote = document.getElementById('truncateNote');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const collapseBtn = document.getElementById('collapseBtn');
+
+        fetch('trees.geojson')
+            .then(r => r.json())
+            .then(data => {
+                trees = data.features;
+                totalCount.textContent = trees.length;
+
+                const families = [...new Set(trees.map(f => f.properties.family).filter(Boolean))].sort();
+                renderFamilyFilters(families);
+
+                const bounds = L.latLngBounds(trees.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]));
+                map.fitBounds(bounds.pad(0.05));
+
+                markers = trees.map((feature, index) => createMarker(feature, index));
+                updateDisplay();
+            })
+            .catch(err => {
+                console.error('Failed to load data', err);
+                treeList.innerHTML = '<div class="no-results">Could not load trees data.</div>';
+            });
+
+        function createMarker(feature, index) {
+            const [lon, lat] = feature.geometry.coordinates;
+            const props = feature.properties;
+            const marker = L.circleMarker([lat, lon], {
+                radius: 6,
+                color: '#2d5016',
+                weight: 1,
+                fillColor: '#2d5016',
+                fillOpacity: 0.85
+            });
+
+            const popup = buildPopup(props);
+            marker.bindPopup(popup);
+            marker.on('click', () => highlightListItem(index));
+            return marker;
+        }
+
+        function buildPopup(props) {
+            const height = props.height_ft ? `${props.height_ft} ft` : null;
+            const dbh = props.dbh_in ? `${props.dbh_in} in DBH` : null;
+            const counts = props.campus_total ? `Individual ${props.individual_number || '?'} of ${props.campus_total}` : null;
+            const condition = props.condition ? `Condition: ${props.condition}` : null;
+            const location = props.location ? `Location: ${props.location}` : null;
+
+            const info = [counts, condition, height, dbh, location].filter(Boolean)
+                .map(v => `<span>${v}</span>`).join('');
+
+            const links = [];
+            if (props.selectree_url) links.push(`<a href="${props.selectree_url}" target="_blank">SelecTree</a>`);
+            if (props.wikipedia_url) links.push(`<a href="${props.wikipedia_url}" target="_blank">Wikipedia</a>`);
+
+            return `
+                <div class="popup-title">${props.common_name || 'Unknown'}</div>
+                <div class="popup-sci">${props.scientific_name || ''}</div>
+                <div class="popup-meta">
+                    <span>Family: ${props.family || '—'}</span>
+                    ${info}
+                </div>
+                ${links.length ? `<div class="popup-links">${links.join('')}</div>` : ''}
+            `;
+        }
+
+        function renderFamilyFilters(families) {
+            familyFiltersContainer.innerHTML = families.map(f => `<span class="family-chip" data-family="${f}">${f}</span>`).join('');
+        }
+
+        function getFilteredIndices() {
+            const query = searchQuery.toLowerCase();
+            const results = [];
+
+            trees.forEach((feature, index) => {
+                const props = feature.properties;
+                if (selectedFamilies.size && !selectedFamilies.has(props.family)) return;
+
+                if (query) {
+                    const haystack = [props.common_name, props.scientific_name, props.family, props.location]
+                        .filter(Boolean)
+                        .join(' ') 
+                        .toLowerCase();
+                    if (!haystack.includes(query)) return;
+                }
+                results.push(index);
+            });
+            return results;
+        }
+
+        function updateDisplay() {
+            const filtered = getFilteredIndices();
+            visibleCount.textContent = filtered.length;
+
+            clusterGroup.clearLayers();
+            const layers = filtered.map(i => markers[i]);
+            clusterGroup.addLayers(layers);
+
+            renderList(filtered);
+        }
+
+        function renderList(indices) {
+            if (!indices.length) {
+                treeList.innerHTML = '<div class="no-results">No trees match your filters.</div>';
+                truncateNote.style.display = 'none';
+                return;
+            }
+
+            const limited = indices.slice(0, MAX_LIST_ITEMS);
+            const itemsHtml = limited.map(i => {
+                const props = trees[i].properties;
+                const labels = [];
+                if (props.family) labels.push(props.family);
+                if (props.location) labels.push(props.location);
+                if (props.condition) labels.push(props.condition);
+
+                return `
+                    <div class="tree-item" data-index="${i}">
+                        <div class="badge">${props.tree_id}</div>
+                        <div class="info">
+                            <div class="name">${props.common_name || 'Unknown'}</div>
+                            <div class="scientific">${props.scientific_name || ''}</div>
+                            <div class="details">${labels.map(l => `<span>${l}</span>`).join('')}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            treeList.innerHTML = itemsHtml;
+            if (indices.length > MAX_LIST_ITEMS) {
+                truncateNote.style.display = 'block';
+                truncateNote.textContent = `Showing first ${MAX_LIST_ITEMS} of ${indices.length} matching trees. Refine search to narrow results.`;
+            } else {
+                truncateNote.style.display = 'none';
+            }
+        }
+
+        familyFiltersContainer.addEventListener('click', (e) => {
+            const chip = e.target.closest('.family-chip');
+            if (!chip) return;
+            const family = chip.dataset.family;
+            if (selectedFamilies.has(family)) {
+                selectedFamilies.delete(family);
+                chip.classList.remove('active');
+            } else {
+                selectedFamilies.add(family);
+                chip.classList.add('active');
+            }
+            updateDisplay();
+        });
+
+        clearFiltersBtn.addEventListener('click', () => {
+            selectedFamilies.clear();
+            document.querySelectorAll('.family-chip').forEach(chip => chip.classList.remove('active'));
+            searchInput.value = '';
+            searchQuery = '';
+            updateDisplay();
+        });
+
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchQuery = value;
+                updateDisplay();
+            }, 200);
+        });
+
+        treeList.addEventListener('click', (e) => {
+            const item = e.target.closest('.tree-item');
+            if (!item) return;
+            const index = Number(item.dataset.index);
+            const marker = markers[index];
+            if (marker) {
+                clusterGroup.zoomToShowLayer(marker, () => {
+                    map.flyTo(marker.getLatLng(), 19);
+                    marker.openPopup();
+                });
+            }
+            if (window.innerWidth <= 900) toggleSidebar(false);
+        });
+
+        function highlightListItem(index) {
+            const el = treeList.querySelector(`.tree-item[data-index="${index}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.background = '#eef5ec';
+                setTimeout(() => el.style.background = '', 800);
+            }
+        }
+
+        sidebarToggle.addEventListener('click', () => toggleSidebar());
+        function toggleSidebar(forceOpen) {
+            const open = forceOpen !== undefined ? forceOpen : !sidebar.classList.contains('open');
+            sidebar.classList.toggle('open', open);
+            sidebarToggle.textContent = open ? 'Close' : 'Menu';
+        }
+
+        collapseBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            collapseBtn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+            setTimeout(() => map.invalidateSize(), 300);
+        });
+
+        window.addEventListener('resize', () => map.invalidateSize());
+    </script>
+</body>
+</html>
