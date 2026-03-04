@@ -1,0 +1,261 @@
+{
+  "label": "before-leaflet",
+  "dateIso": "2026-03-04T19:05:11.305Z",
+  "environment": {
+    "platform": "darwin",
+    "nodeVersion": "v20.14.0",
+    "runs": 5,
+    "warmup": 1,
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "summary": {
+    "readyMs": {
+      "mean": 973.5567086000001,
+      "median": 965.9137090000004,
+      "min": 952.4192499999999,
+      "max": 999.6531670000004,
+      "samples": [
+        952.4192499999999,
+        999.6531670000004,
+        965.9137090000004,
+        962.3439170000001,
+        987.4534999999996
+      ]
+    },
+    "searchOakMs": {
+      "mean": 296.2600000023842,
+      "median": 294.60000002384186,
+      "min": 290.39999997615814,
+      "max": 303.59999999403954,
+      "samples": [
+        303.59999999403954,
+        290.7000000178814,
+        294.60000002384186,
+        302,
+        290.39999997615814
+      ]
+    },
+    "familyToggleMs": {
+      "mean": 124.03999999761581,
+      "median": 124.69999998807907,
+      "min": 119,
+      "max": 130.40000000596046,
+      "samples": [
+        124.69999998807907,
+        119,
+        126.09999999403954,
+        120,
+        130.40000000596046
+      ]
+    },
+    "heightMin20Ms": {
+      "mean": 107.15999999642372,
+      "median": 106.69999998807907,
+      "min": 105.59999999403954,
+      "max": 109.09999999403954,
+      "samples": [
+        107.80000001192093,
+        106.59999999403954,
+        105.59999999403954,
+        106.69999998807907,
+        109.09999999403954
+      ]
+    },
+    "clearAllMs": {
+      "mean": 291.7200000047684,
+      "median": 291.30000001192093,
+      "min": 287.60000002384186,
+      "max": 298,
+      "samples": [
+        293.7999999821186,
+        287.90000000596046,
+        291.30000001192093,
+        287.60000002384186,
+        298
+      ]
+    },
+    "domNodeCount": {
+      "mean": 6814,
+      "median": 6814,
+      "min": 6814,
+      "max": 6814,
+      "samples": [
+        6814,
+        6814,
+        6814,
+        6814,
+        6814
+      ]
+    }
+  },
+  "runs": [
+    {
+      "readyMs": 952.4192499999999,
+      "totalTrees": 6624,
+      "finalVisible": 6624,
+      "domNodeCount": 6814,
+      "heapUsedBytes": 36448317,
+      "actions": {
+        "searchOak": {
+          "before": 6624,
+          "after": 955,
+          "changed": true,
+          "durationMs": 303.59999999403954
+        },
+        "familyToggle": {
+          "before": 6624,
+          "after": 5,
+          "changed": true,
+          "durationMs": 124.69999998807907
+        },
+        "heightMin20": {
+          "before": 6624,
+          "after": 3872,
+          "changed": true,
+          "durationMs": 107.80000001192093
+        },
+        "clearAll": {
+          "before": 3872,
+          "after": 6624,
+          "changed": true,
+          "durationMs": 293.7999999821186
+        }
+      }
+    },
+    {
+      "readyMs": 999.6531670000004,
+      "totalTrees": 6624,
+      "finalVisible": 6624,
+      "domNodeCount": 6814,
+      "heapUsedBytes": 43893766,
+      "actions": {
+        "searchOak": {
+          "before": 6624,
+          "after": 955,
+          "changed": true,
+          "durationMs": 290.7000000178814
+        },
+        "familyToggle": {
+          "before": 6624,
+          "after": 5,
+          "changed": true,
+          "durationMs": 119
+        },
+        "heightMin20": {
+          "before": 6624,
+          "after": 3872,
+          "changed": true,
+          "durationMs": 106.59999999403954
+        },
+        "clearAll": {
+          "before": 3872,
+          "after": 6624,
+          "changed": true,
+          "durationMs": 287.90000000596046
+        }
+      }
+    },
+    {
+      "readyMs": 965.9137090000004,
+      "totalTrees": 6624,
+      "finalVisible": 6624,
+      "domNodeCount": 6814,
+      "heapUsedBytes": 28659053,
+      "actions": {
+        "searchOak": {
+          "before": 6624,
+          "after": 955,
+          "changed": true,
+          "durationMs": 294.60000002384186
+        },
+        "familyToggle": {
+          "before": 6624,
+          "after": 5,
+          "changed": true,
+          "durationMs": 126.09999999403954
+        },
+        "heightMin20": {
+          "before": 6624,
+          "after": 3872,
+          "changed": true,
+          "durationMs": 105.59999999403954
+        },
+        "clearAll": {
+          "before": 3872,
+          "after": 6624,
+          "changed": true,
+          "durationMs": 291.30000001192093
+        }
+      }
+    },
+    {
+      "readyMs": 962.3439170000001,
+      "totalTrees": 6624,
+      "finalVisible": 6624,
+      "domNodeCount": 6814,
+      "heapUsedBytes": 43797842,
+      "actions": {
+        "searchOak": {
+          "before": 6624,
+          "after": 955,
+          "changed": true,
+          "durationMs": 302
+        },
+        "familyToggle": {
+          "before": 6624,
+          "after": 5,
+          "changed": true,
+          "durationMs": 120
+        },
+        "heightMin20": {
+          "before": 6624,
+          "after": 3872,
+          "changed": true,
+          "durationMs": 106.69999998807907
+        },
+        "clearAll": {
+          "before": 3872,
+          "after": 6624,
+          "changed": true,
+          "durationMs": 287.60000002384186
+        }
+      }
+    },
+    {
+      "readyMs": 987.4534999999996,
+      "totalTrees": 6624,
+      "finalVisible": 6624,
+      "domNodeCount": 6814,
+      "heapUsedBytes": 28601645,
+      "actions": {
+        "searchOak": {
+          "before": 6624,
+          "after": 955,
+          "changed": true,
+          "durationMs": 290.39999997615814
+        },
+        "familyToggle": {
+          "before": 6624,
+          "after": 5,
+          "changed": true,
+          "durationMs": 130.40000000596046
+        },
+        "heightMin20": {
+          "before": 6624,
+          "after": 3872,
+          "changed": true,
+          "durationMs": 109.09999999403954
+        },
+        "clearAll": {
+          "before": 3872,
+          "after": 6624,
+          "changed": true,
+          "durationMs": 298
+        }
+      }
+    }
+  ]
+}
