@@ -30,17 +30,7 @@
         .chip:hover { border-color: #2d5016; }
         .chip.active { background: #2d5016; color: #fff; border-color: #2d5016; }
 
-        .tree-list { flex: 1; overflow-y: auto; }
-        .tree-item { padding: 12px 16px; border-bottom: 1px solid #f3f3f3; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: background 0.15s; }
-        .tree-item:hover { background: #f9faf9; }
-        .tree-item .badge { min-width: 36px; height: 36px; border-radius: 10px; background: #e8f1e6; color: #2d5016; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-        .tree-item .info { flex: 1; min-width: 0; }
-        .tree-item .name { font-weight: 600; color: #1f3b1f; margin-bottom: 4px; }
-        .tree-item .scientific { font-size: 0.88rem; color: #556655; font-style: italic; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .tree-item .details { font-size: 0.78rem; color: #6f7f6f; display: flex; gap: 8px; flex-wrap: wrap; }
-        .tree-item .details span { background: #f1f4f0; padding: 2px 8px; border-radius: 10px; }
-        .no-results { padding: 20px; text-align: center; color: #8a9a8a; }
-        .truncate-note { padding: 8px 16px; font-size: 0.8rem; color: #6f7f6f; background: #f9faf9; border-top: 1px solid #eee; }
+        .no-results { padding: 12px 16px; color: #8a9a8a; }
 
         .sidebar-toggle { position: absolute; top: 12px; right: 12px; z-index: 1100; padding: 10px 14px; background: white; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 0.9rem; display: none; }
 
@@ -101,8 +91,7 @@
             <div class="chip-row" id="familyFilters"></div>
         </div>
 
-        <div class="tree-list" id="treeList"></div>
-        <div class="truncate-note" id="truncateNote" style="display:none"></div>
+        <div class="no-results" id="emptyState" style="display:none">No trees match your filters.</div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -110,9 +99,9 @@
         const MAX_LIST_ITEMS = 400;
         const LABEL_ZOOM = 18;
         const mapEl = document.getElementById('map');
-        const map = L.map('map', { preferCanvas: true });
+        const map = L.map('map', { preferCanvas: true, zoomControl: true });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 20,
+            maxZoom: 22,
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         }).addTo(map);
 
@@ -146,11 +135,10 @@
         const searchInput = document.getElementById('search');
         const familyFiltersContainer = document.getElementById('familyFilters');
         const groupFiltersContainer = document.getElementById('groupFilters');
-        const treeList = document.getElementById('treeList');
         const visibleCount = document.getElementById('visible-count');
         const totalCount = document.getElementById('total-count');
         const clearFiltersBtn = document.getElementById('clearFilters');
-        const truncateNote = document.getElementById('truncateNote');
+        const emptyState = document.getElementById('emptyState');
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -189,7 +177,6 @@
 
             const popup = buildPopup(props);
             marker.bindPopup(popup);
-            marker.on('click', () => highlightListItem(index));
             marker.bindTooltip(props.common_name || '', {
                 permanent: true,
                 direction: 'top',
@@ -274,44 +261,8 @@
                 }
             });
 
-            renderList(filtered);
+            emptyState.style.display = filtered.length ? 'none' : 'block';
             refreshLabels();
-        }
-
-        function renderList(indices) {
-            if (!indices.length) {
-                treeList.innerHTML = '<div class="no-results">No trees match your filters.</div>';
-                truncateNote.style.display = 'none';
-                return;
-            }
-
-            const limited = indices.slice(0, MAX_LIST_ITEMS);
-            const itemsHtml = limited.map(i => {
-                const props = trees[i].properties;
-                const labels = [];
-                if (props.family) labels.push(props.family);
-                if (props.location) labels.push(props.location);
-                if (props.condition) labels.push(props.condition);
-
-                return `
-                    <div class="tree-item" data-index="${i}">
-                        <div class="badge">${props.tree_id}</div>
-                        <div class="info">
-                            <div class="name">${props.common_name || 'Unknown'}</div>
-                            <div class="scientific">${props.scientific_name || ''}</div>
-                            <div class="details">${labels.map(l => `<span>${l}</span>`).join('')}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            treeList.innerHTML = itemsHtml;
-            if (indices.length > MAX_LIST_ITEMS) {
-                truncateNote.style.display = 'block';
-                truncateNote.textContent = `Showing first ${MAX_LIST_ITEMS} of ${indices.length} matching trees. Refine search to narrow results.`;
-            } else {
-                truncateNote.style.display = 'none';
-            }
         }
 
         familyFiltersContainer.addEventListener('click', (e) => {
@@ -360,27 +311,6 @@
                 updateDisplay();
             }, 200);
         });
-
-        treeList.addEventListener('click', (e) => {
-            const item = e.target.closest('.tree-item');
-            if (!item) return;
-            const index = Number(item.dataset.index);
-            const marker = markers[index];
-            if (marker) {
-                map.flyTo(marker.getLatLng(), 19);
-                marker.openPopup();
-            }
-            if (window.innerWidth <= 900) toggleSidebar(false);
-        });
-
-        function highlightListItem(index) {
-            const el = treeList.querySelector(`.tree-item[data-index="${index}"]`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.style.background = '#eef5ec';
-                setTimeout(() => el.style.background = '', 800);
-            }
-        }
 
         sidebarToggle.addEventListener('click', () => toggleSidebar());
         function toggleSidebar(forceOpen) {
