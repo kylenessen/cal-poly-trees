@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cal Poly Campus Trees (2015)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; color: #1f2a1c; }
@@ -48,6 +46,9 @@
 
         .collapse-btn { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 1001; width: 26px; height: 60px; background: white; border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; }
 
+        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 900; }
+        .sidebar-backdrop.visible { display: block; }
+
         .leaflet-popup-content { margin: 10px 12px; line-height: 1.5; }
         .popup-title { font-size: 1.05rem; font-weight: 700; color: #1f3b1f; margin-bottom: 4px; }
         .popup-sci { font-style: italic; color: #445544; margin-bottom: 6px; }
@@ -56,8 +57,8 @@
         .popup-links a { display: inline-block; margin-right: 8px; font-size: 0.85rem; color: #2d5016; text-decoration: none; }
         .popup-links a:hover { text-decoration: underline; }
 
-        .marker-cluster-small { background: rgba(45,80,22,0.8); }
-        .marker-cluster-small div { background: #e4f0e2; color: #1f3b1f; }
+        .leaflet-tooltip.tree-label { display: none; background: none; border: none; box-shadow: none; font-size: 11px; font-weight: 600; color: #2d5016; text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white, 0 -1px 0 white, 0 1px 0 white, -1px 0 0 white, 1px 0 0 white; }
+        #map.show-labels .leaflet-tooltip.tree-label { display: block; }
 
         @media (max-width: 900px) {
             .sidebar { position: absolute; right: 0; top: 0; height: 100%; transform: translateX(100%); }
@@ -71,6 +72,7 @@
     <button class="sidebar-toggle" id="sidebarToggle">Menu</button>
     <button class="collapse-btn" id="collapseBtn">&#9664;</button>
     <div id="map"></div>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -97,21 +99,15 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
         const MAX_LIST_ITEMS = 400;
+        const LABEL_ZOOM = 18;
+        const mapEl = document.getElementById('map');
         const map = L.map('map', { preferCanvas: true });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 20,
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         }).addTo(map);
-
-        const clusterGroup = L.markerClusterGroup({
-            disableClusteringAtZoom: 19,
-            showCoverageOnHover: false,
-            spiderfyDistanceMultiplier: 1.1
-        });
-        map.addLayer(clusterGroup);
 
         let trees = [];
         let markers = [];
@@ -163,6 +159,12 @@
             const popup = buildPopup(props);
             marker.bindPopup(popup);
             marker.on('click', () => highlightListItem(index));
+            marker.bindTooltip(props.common_name || '', {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -6],
+                className: 'tree-label'
+            });
             return marker;
         }
 
@@ -219,9 +221,14 @@
             const filtered = getFilteredIndices();
             visibleCount.textContent = filtered.length;
 
-            clusterGroup.clearLayers();
-            const layers = filtered.map(i => markers[i]);
-            clusterGroup.addLayers(layers);
+            const visibleSet = new Set(filtered);
+            markers.forEach((m, i) => {
+                if (visibleSet.has(i)) {
+                    m.addTo(map);
+                } else {
+                    map.removeLayer(m);
+                }
+            });
 
             renderList(filtered);
         }
@@ -300,10 +307,8 @@
             const index = Number(item.dataset.index);
             const marker = markers[index];
             if (marker) {
-                clusterGroup.zoomToShowLayer(marker, () => {
-                    map.flyTo(marker.getLatLng(), 19);
-                    marker.openPopup();
-                });
+                map.flyTo(marker.getLatLng(), 19);
+                marker.openPopup();
             }
             if (window.innerWidth <= 900) toggleSidebar(false);
         });
@@ -321,13 +326,57 @@
         function toggleSidebar(forceOpen) {
             const open = forceOpen !== undefined ? forceOpen : !sidebar.classList.contains('open');
             sidebar.classList.toggle('open', open);
+            sidebarBackdrop.classList.toggle('visible', open && window.innerWidth <= 900);
             sidebarToggle.textContent = open ? 'Close' : 'Menu';
+
+            if (window.innerWidth <= 900) {
+                setMapInteractivity(!open);
+            }
         }
+
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        sidebarBackdrop.addEventListener('click', () => toggleSidebar(false));
 
         collapseBtn.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             collapseBtn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
             setTimeout(() => map.invalidateSize(), 300);
+        });
+
+        // Show labels only when zoomed in to reduce clutter
+        map.on('zoomend moveend', () => {
+            const showLabels = map.getZoom() >= LABEL_ZOOM;
+            mapEl.classList.toggle('show-labels', showLabels);
+        });
+
+        function setMapInteractivity(enabled) {
+            const methods = [
+                ['dragging', 'enable', 'disable'],
+                ['scrollWheelZoom', 'enable', 'disable'],
+                ['doubleClickZoom', 'enable', 'disable'],
+                ['touchZoom', 'enable', 'disable'],
+                ['boxZoom', 'enable', 'disable'],
+                ['keyboard', 'enable', 'disable'],
+            ];
+            methods.forEach(([name, en, dis]) => {
+                if (map[name]) {
+                    map[name][enabled ? en : dis]();
+                }
+            });
+        }
+
+        // Initial label toggle
+        map.whenReady(() => {
+            const showLabels = map.getZoom() >= LABEL_ZOOM;
+            mapEl.classList.toggle('show-labels', showLabels);
+        });
+
+        // Prevent touch scroll trapping when sidebar open
+        ['touchmove', 'wheel'].forEach(evt => {
+            sidebar.addEventListener(evt, e => {
+                if (!sidebar.classList.contains('open') && window.innerWidth <= 900) return;
+                e.stopPropagation();
+            }, { passive: false });
         });
 
         window.addEventListener('resize', () => map.invalidateSize());

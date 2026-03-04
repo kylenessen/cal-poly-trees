@@ -26,6 +26,14 @@ OUTPUT_PATH = REPO_ROOT / "trees.geojson"
 # Namespaces (the KML omits an xsi declaration, so we strip that before parsing)
 NS = {"kml": "http://www.opengis.net/kml/2.2"}
 
+# Rough campus extent to drop stray points (e.g., Cuesta outlier in the KMZ)
+CAMPUS_BOUNDS = {
+    "min_lon": -120.68,
+    "max_lon": -120.64,
+    "min_lat": 35.29,
+    "max_lat": 35.31,
+}
+
 
 @dataclass
 class TreeRecord:
@@ -131,6 +139,13 @@ def build_geojson():
             # Skip malformed placemarks (only a couple of rows)
             continue
         lon, lat = float(parts[0]), float(parts[1])
+
+        if not (
+            CAMPUS_BOUNDS["min_lon"] <= lon <= CAMPUS_BOUNDS["max_lon"]
+            and CAMPUS_BOUNDS["min_lat"] <= lat <= CAMPUS_BOUNDS["max_lat"]
+        ):
+            # Drop outliers outside the core campus extent
+            continue
 
         desc_el = pm.find("kml:description", NS)
         desc_html = desc_el.text if desc_el is not None else ""

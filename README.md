@@ -1,10 +1,10 @@
 # Cal Poly Campus Tree Map (2015)
 
-Static Leaflet map built from the 2015 ArborPro campus tree inventory KMZ. It mirrors the Cuesta College tree map UX (search, family filters, list + map), scaled for 6,657 trees.
+Static Leaflet map built from the 2015 ArborPro campus tree inventory KMZ. It mirrors the Cuesta College tree map UX (search, family filters, list + map), scaled for 6,624 trees.
 
 ## Files
 - `Cal Poly Core Campus Trees 2015.kmz` — original source file.
-- `trees.geojson` — web-friendly dataset generated from the KMZ (6,657 features).
+- `trees.geojson` — web-friendly dataset generated from the KMZ (6,624 features).
 - `index.html` — Leaflet + MarkerCluster front-end; open via any static server.
 - `scripts/convert_kmz_to_geojson.py` — reproducible conversion script using only the standard library.
 
