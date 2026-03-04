@@ -58,7 +58,7 @@
         .popup-links a:hover { text-decoration: underline; }
 
         .leaflet-tooltip.tree-label { display: none; background: none; border: none; box-shadow: none; font-size: 11px; font-weight: 600; color: #2d5016; text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white, 0 -1px 0 white, 0 1px 0 white, -1px 0 0 white, 1px 0 0 white; }
-        #map.show-labels .leaflet-tooltip.tree-label { display: block; }
+        #map.show-labels .leaflet-tooltip.tree-label.visible { display: block; }
 
         @media (max-width: 900px) {
             .sidebar { position: absolute; right: 0; top: 0; height: 100%; transform: translateX(100%); }
@@ -113,6 +113,7 @@
         let markers = [];
         let selectedFamilies = new Set();
         let searchQuery = '';
+        let lastVisibleIndices = [];
 
         const searchInput = document.getElementById('search');
         const familyFiltersContainer = document.getElementById('familyFilters');
@@ -220,6 +221,7 @@
         function updateDisplay() {
             const filtered = getFilteredIndices();
             visibleCount.textContent = filtered.length;
+            lastVisibleIndices = filtered;
 
             const visibleSet = new Set(filtered);
             markers.forEach((m, i) => {
@@ -231,6 +233,7 @@
             });
 
             renderList(filtered);
+            refreshLabels();
         }
 
         function renderList(indices) {
@@ -344,10 +347,7 @@
         });
 
         // Show labels only when zoomed in to reduce clutter
-        map.on('zoomend moveend', () => {
-            const showLabels = map.getZoom() >= LABEL_ZOOM;
-            mapEl.classList.toggle('show-labels', showLabels);
-        });
+        map.on('zoomend moveend', refreshLabels);
 
         function setMapInteractivity(enabled) {
             const methods = [
@@ -367,8 +367,7 @@
 
         // Initial label toggle
         map.whenReady(() => {
-            const showLabels = map.getZoom() >= LABEL_ZOOM;
-            mapEl.classList.toggle('show-labels', showLabels);
+            refreshLabels();
         });
 
         // Prevent touch scroll trapping when sidebar open
@@ -378,6 +377,33 @@
                 e.stopPropagation();
             }, { passive: false });
         });
+
+        function refreshLabels() {
+            const showLabels = map.getZoom() >= LABEL_ZOOM;
+            mapEl.classList.toggle('show-labels', showLabels);
+
+            // Clear visibility
+            markers.forEach(m => {
+                const el = m.getTooltip() && m.getTooltip().getElement();
+                if (el) el.classList.remove('visible');
+            });
+
+            if (!showLabels || !lastVisibleIndices.length) return;
+
+            const occupied = new Set();
+            const cellSize = 40; // px grid to reduce collisions
+
+            lastVisibleIndices.forEach(i => {
+                const marker = markers[i];
+                if (!map.hasLayer(marker)) return;
+                const pt = map.latLngToContainerPoint(marker.getLatLng());
+                const key = `${Math.round(pt.x / cellSize)}_${Math.round(pt.y / cellSize)}`;
+                if (occupied.has(key)) return;
+                occupied.add(key);
+                const el = marker.getTooltip() && marker.getTooltip().getElement();
+                if (el) el.classList.add('visible');
+            });
+        }
 
         window.addEventListener('resize', () => map.invalidateSize());
     </script>
