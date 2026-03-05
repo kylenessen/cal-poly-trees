@@ -172,6 +172,12 @@
                 tiles: ['https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/9175/{z}/{y}/{x}'],
                 attribution: 'Source: Esri Wayback, DigitalGlobe/Maxar, USDA, USGS, and the GIS User Community'
             },
+            esriWayback2025: {
+                label: 'Esri Wayback 2025-09-04',
+                // ArcGIS item: 1fd9c88fbbfe41698e71a4581b19e554
+                tiles: ['https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/52304/{z}/{y}/{x}'],
+                attribution: 'Source: Esri Wayback, Vantor, Earthstar Geographics, and the GIS User Community'
+            },
             esriWayback2014: {
                 label: 'Esri Wayback 2014-02-20',
                 // ArcGIS item: 903f0abe9c3b452dafe1ca5b8dd858b9
@@ -184,6 +190,7 @@
             cartoLight: 'basemap-carto',
             esriImagery: 'basemap-esri',
             esriWayback2016: 'basemap-wayback-2016',
+            esriWayback2025: 'basemap-wayback-2025',
             esriWayback2014: 'basemap-wayback-2014'
         };
 
@@ -242,7 +249,7 @@
         let maxDbh = null;
         let mapReady = false;
         let dataReady = false;
-        let activeBasemap = 'cartoLight';
+        let activeBasemap = 'esriWayback2025';
         let pendingUpdate = false;
 
         const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -257,6 +264,7 @@
                 this.select.innerHTML = `
                     <option value="cartoLight">Carto Light</option>
                     <option value="esriImagery">Esri World Imagery</option>
+                    <option value="esriWayback2025">Esri Wayback 2025-09-04</option>
                     <option value="esriWayback2016">Esri Wayback 2016-08-31</option>
                     <option value="esriWayback2014">Esri Wayback 2014-02-20</option>
                 `;
@@ -356,6 +364,12 @@
                         tileSize: 256,
                         attribution: BASEMAPS.esriWayback2016.attribution
                     },
+                    basemap_wayback_2025: {
+                        type: 'raster',
+                        tiles: BASEMAPS.esriWayback2025.tiles,
+                        tileSize: 256,
+                        attribution: BASEMAPS.esriWayback2025.attribution
+                    },
                     basemap_wayback_2014: {
                         type: 'raster',
                         tiles: BASEMAPS.esriWayback2014.tiles,
@@ -392,6 +406,12 @@
                         id: 'basemap-wayback-2016',
                         type: 'raster',
                         source: 'basemap_wayback_2016',
+                        layout: { visibility: 'none' }
+                    },
+                    {
+                        id: 'basemap-wayback-2025',
+                        type: 'raster',
+                        source: 'basemap_wayback_2025',
                         layout: { visibility: 'none' }
                     },
                     {
