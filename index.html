@@ -165,7 +165,26 @@
                 label: 'Esri World Imagery',
                 tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
                 attribution: 'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+            },
+            esriWayback2016: {
+                label: 'Esri Wayback 2016-08-31',
+                // ArcGIS item: d02f6b6905a142a2a3726844e7f3da2b
+                tiles: ['https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/9175/{z}/{y}/{x}'],
+                attribution: 'Source: Esri Wayback, DigitalGlobe/Maxar, USDA, USGS, and the GIS User Community'
+            },
+            esriWayback2014: {
+                label: 'Esri Wayback 2014-02-20',
+                // ArcGIS item: 903f0abe9c3b452dafe1ca5b8dd858b9
+                tiles: ['https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/10/{z}/{y}/{x}'],
+                attribution: 'Source: Esri Wayback, DigitalGlobe, USDA, USGS, and the GIS User Community'
             }
+        };
+
+        const BASEMAP_LAYER_IDS = {
+            cartoLight: 'basemap-carto',
+            esriImagery: 'basemap-esri',
+            esriWayback2016: 'basemap-wayback-2016',
+            esriWayback2014: 'basemap-wayback-2014'
         };
 
         const GROUP_DEFS = [
@@ -238,6 +257,8 @@
                 this.select.innerHTML = `
                     <option value="cartoLight">Carto Light</option>
                     <option value="esriImagery">Esri World Imagery</option>
+                    <option value="esriWayback2016">Esri Wayback 2016-08-31</option>
+                    <option value="esriWayback2014">Esri Wayback 2014-02-20</option>
                 `;
                 this.select.value = activeBasemap;
                 this.onChange = (e) => {
@@ -329,6 +350,18 @@
                         tileSize: 256,
                         attribution: BASEMAPS.esriImagery.attribution
                     },
+                    basemap_wayback_2016: {
+                        type: 'raster',
+                        tiles: BASEMAPS.esriWayback2016.tiles,
+                        tileSize: 256,
+                        attribution: BASEMAPS.esriWayback2016.attribution
+                    },
+                    basemap_wayback_2014: {
+                        type: 'raster',
+                        tiles: BASEMAPS.esriWayback2014.tiles,
+                        tileSize: 256,
+                        attribution: BASEMAPS.esriWayback2014.attribution
+                    },
                     trees: {
                         type: 'geojson',
                         data: emptyFeatureCollection
@@ -353,6 +386,18 @@
                         id: 'basemap-esri',
                         type: 'raster',
                         source: 'basemap_esri',
+                        layout: { visibility: 'none' }
+                    },
+                    {
+                        id: 'basemap-wayback-2016',
+                        type: 'raster',
+                        source: 'basemap_wayback_2016',
+                        layout: { visibility: 'none' }
+                    },
+                    {
+                        id: 'basemap-wayback-2014',
+                        type: 'raster',
+                        source: 'basemap_wayback_2014',
                         layout: { visibility: 'none' }
                     },
                     {
@@ -896,9 +941,10 @@
 
         function applyBasemapVisibility() {
             if (!mapReady) return;
-            const showCarto = activeBasemap === 'cartoLight';
-            map.setLayoutProperty('basemap-carto', 'visibility', showCarto ? 'visible' : 'none');
-            map.setLayoutProperty('basemap-esri', 'visibility', showCarto ? 'none' : 'visible');
+            Object.entries(BASEMAP_LAYER_IDS).forEach(([key, layerId]) => {
+                if (!map.getLayer(layerId)) return;
+                map.setLayoutProperty(layerId, 'visibility', activeBasemap === key ? 'visible' : 'none');
+            });
         }
 
         function toRadians(deg) {
