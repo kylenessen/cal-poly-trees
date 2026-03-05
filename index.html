@@ -60,6 +60,7 @@
             width: 30px;
             height: 30px;
             border: 0;
+            border-radius: 4px;
             background: #fff;
             color: #1f2a1c;
             display: grid;
@@ -72,7 +73,7 @@
             position: absolute;
             top: 34px;
             left: 0;
-            min-width: 190px;
+            min-width: 210px;
             background: #fff;
             border: 1px solid rgba(0, 0, 0, 0.14);
             border-radius: 6px;
@@ -82,19 +83,24 @@
             display: none;
         }
         .basemap-menu.open { display: block; }
-        .basemap-menu-btn {
+        .basemap-control .basemap-menu-btn {
+            display: block;
             width: 100%;
+            height: auto;
+            min-height: 0;
             border: 0;
             background: transparent;
             text-align: left;
             padding: 7px 9px;
             border-radius: 4px;
             font-size: 12px;
+            line-height: 1.25;
+            white-space: nowrap;
             color: #1f2a1c;
             cursor: pointer;
         }
-        .basemap-menu-btn:hover { background: #f5f5f5; }
-        .basemap-menu-btn.active {
+        .basemap-control .basemap-menu-btn:hover { background: #f5f5f5; }
+        .basemap-control .basemap-menu-btn.active {
             background: #2d5016;
             color: #fff;
         }
@@ -285,7 +291,7 @@
         class BasemapControl {
             onAdd() {
                 this.container = document.createElement('div');
-                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group basemap-control';
+                this.container.className = 'maplibregl-ctrl basemap-control';
 
                 this.button = document.createElement('button');
                 this.button.type = 'button';
