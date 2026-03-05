@@ -7,11 +7,13 @@
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; color: #1f2a1c; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; color: #1f2a1c; overflow: hidden; }
         #map { flex: 1; height: 100%; }
 
-        .sidebar { width: 360px; max-width: 90vw; height: 100%; background: #fff; box-shadow: -2px 0 10px rgba(0,0,0,0.12); display: flex; flex-direction: column; z-index: 1000; transition: transform 0.3s; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        .sidebar.collapsed { transform: translateX(100%); }
+        .sidebar { position: relative; width: 360px; flex: 0 0 360px; max-width: 90vw; height: 100%; background: #fff; box-shadow: -2px 0 10px rgba(0,0,0,0.12); display: flex; flex-direction: column; z-index: 1000; transition: width 0.3s ease, flex-basis 0.3s ease, transform 0.3s ease; overflow: visible; }
+        .sidebar-content { width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; }
+        .sidebar.collapsed { width: 0; flex-basis: 0; min-width: 0; box-shadow: none; }
+        .sidebar.collapsed .sidebar-content { opacity: 0; pointer-events: none; }
         .sidebar-header { padding: 16px; border-bottom: 1px solid #eee; }
         .sidebar-header h1 { font-size: 1.2rem; margin-bottom: 6px; color: #1f3b1f; }
         .sidebar-header .meta { font-size: 0.9rem; color: #4b604b; }
@@ -44,7 +46,7 @@
         .sidebar-toggle { position: absolute; top: 12px; right: 12px; z-index: 1100; padding: 10px 14px; background: white; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 0.9rem; display: none; }
         .mobile-locate-btn { position: absolute; top: 12px; right: 94px; z-index: 1100; padding: 10px 12px; background: white; border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 0.85rem; display: none; color: #2d5016; }
 
-        .collapse-btn { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 1001; width: 26px; height: 60px; background: white; border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; }
+        .collapse-btn { position: absolute; left: -13px; top: 50%; transform: translateY(-50%); z-index: 1002; width: 26px; height: 60px; background: white; border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; }
 
         .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 900; }
         .sidebar-backdrop.visible { display: block; }
@@ -106,7 +108,7 @@
         }
 
         @media (max-width: 900px) {
-            .sidebar { position: absolute; right: 0; top: 0; height: 100%; transform: translateX(100%); }
+            .sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 360px; max-width: 90vw; flex: none; transform: translateX(100%); }
             .sidebar.open { transform: translateX(0); }
             .sidebar-toggle { display: block; }
             .mobile-locate-btn { display: block; }
@@ -118,70 +120,72 @@
 <body>
     <button class="mobile-locate-btn" id="mobileLocateBtn" type="button">Locate</button>
     <button class="sidebar-toggle" id="sidebarToggle">Menu</button>
-    <button class="collapse-btn" id="collapseBtn">&#9664;</button>
     <div id="map"></div>
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h1>Cal Poly Campus Trees</h1>
-            <div class="meta">
-                <span id="visible-count">0</span>/<span id="total-count">0</span> trees · Inventory: 2015 ArborPro
+        <button class="collapse-btn" id="collapseBtn" type="button">&#9654;</button>
+        <div class="sidebar-content">
+            <div class="sidebar-header">
+                <h1>Cal Poly Campus Trees</h1>
+                <div class="meta">
+                    <span id="visible-count">0</span>/<span id="total-count">0</span> trees · Inventory: 2015 ArborPro
+                </div>
             </div>
-        </div>
 
-        <div class="search-box">
-            <input type="text" id="search" placeholder="Search common name, species, family, or location" autocomplete="off">
-            <div class="search-actions">
-                <button class="small-btn" id="locateBtn" type="button">Use My Location</button>
-                <button class="small-btn secondary" id="clearLocationBtn" type="button" style="display:none">Clear Location</button>
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Search common name, species, family, or location" autocomplete="off">
+                <div class="search-actions">
+                    <button class="small-btn" id="locateBtn" type="button">Use My Location</button>
+                    <button class="small-btn secondary" id="clearLocationBtn" type="button" style="display:none">Clear Location</button>
+                </div>
+                <div class="location-status" id="locationStatus"></div>
             </div>
-            <div class="location-status" id="locationStatus"></div>
-        </div>
 
-        <div class="filters-section">
-            <div class="filters-header">
-                <h3>Filter by Group</h3>
-                <span class="clear-filters" id="clearFilters">Clear</span>
+            <div class="filters-section">
+                <div class="filters-header">
+                    <h3>Filter by Group</h3>
+                    <span class="clear-filters" id="clearFilters">Clear</span>
+                </div>
+                <div class="chip-row" id="groupFilters"></div>
             </div>
-            <div class="chip-row" id="groupFilters"></div>
-        </div>
 
-        <div class="filters-section">
-            <div class="filters-header">
-                <h3>Filter by Condition</h3>
+            <div class="filters-section">
+                <div class="filters-header">
+                    <h3>Filter by Condition</h3>
+                </div>
+                <div class="chip-row" id="conditionFilters"></div>
             </div>
-            <div class="chip-row" id="conditionFilters"></div>
-        </div>
 
-        <div class="filters-section">
-            <div class="filters-header">
-                <h3>Filter by Height (ft)</h3>
+            <div class="filters-section">
+                <div class="filters-header">
+                    <h3>Filter by Height (ft)</h3>
+                </div>
+                <div class="range-inputs">
+                    <input type="number" id="minHeight" placeholder="Min">
+                    <input type="number" id="maxHeight" placeholder="Max">
+                </div>
             </div>
-            <div class="range-inputs">
-                <input type="number" id="minHeight" placeholder="Min">
-                <input type="number" id="maxHeight" placeholder="Max">
-            </div>
-        </div>
 
-        <div class="filters-section">
-            <div class="filters-header">
-                <h3>Filter by DBH (in)</h3>
+            <div class="filters-section">
+                <div class="filters-header">
+                    <h3>Filter by DBH (in)</h3>
+                </div>
+                <div class="range-inputs">
+                    <input type="number" id="minDbh" placeholder="Min">
+                    <input type="number" id="maxDbh" placeholder="Max">
+                </div>
             </div>
-            <div class="range-inputs">
-                <input type="number" id="minDbh" placeholder="Min">
-                <input type="number" id="maxDbh" placeholder="Max">
-            </div>
-        </div>
 
-        <div class="filters-section">
-            <div class="filters-header">
-                <h3>Filter by Family</h3>
+            <div class="filters-section">
+                <div class="filters-header">
+                    <h3>Filter by Family</h3>
+                </div>
+                <div class="chip-row" id="familyFilters"></div>
             </div>
-            <div class="chip-row" id="familyFilters"></div>
-        </div>
 
-        <div class="no-results" id="emptyState" style="display:none">No trees match your filters.</div>
+            <div class="no-results" id="emptyState" style="display:none">No trees match your filters.</div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -285,6 +289,7 @@
         let dataReady = false;
         let activeBasemap = 'cartoLight';
         let pendingUpdate = false;
+        let hasFittedInitialBounds = false;
 
         const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
 
@@ -628,9 +633,12 @@
                 source.setData({ type: 'FeatureCollection', features: trees });
             }
 
-            const bounds = new maplibregl.LngLatBounds();
-            trees.forEach((feature) => bounds.extend(feature.geometry.coordinates));
-            map.fitBounds(bounds, { padding: 40, duration: 0 });
+            if (!hasFittedInitialBounds && trees.length) {
+                const bounds = new maplibregl.LngLatBounds();
+                trees.forEach((feature) => bounds.extend(feature.geometry.coordinates));
+                map.fitBounds(bounds, { padding: 40, duration: 0 });
+                hasFittedInitialBounds = true;
+            }
             applyLayerFilter();
         }
 
@@ -994,7 +1002,7 @@
 
         collapseBtn.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
-            collapseBtn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+            collapseBtn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9664;' : '&#9654;';
             setTimeout(() => map.resize(), 300);
         });
 
@@ -1010,6 +1018,10 @@
 
         function syncMobileControls() {
             if (window.innerWidth <= MOBILE_BREAKPOINT) {
+                if (sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                    collapseBtn.innerHTML = '&#9654;';
+                }
                 mobileLocateBtn.style.display = sidebar.classList.contains('open') ? 'none' : 'block';
             } else {
                 mobileLocateBtn.style.display = 'none';
