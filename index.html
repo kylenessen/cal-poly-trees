@@ -254,6 +254,14 @@
         ];
 
         const DEFAULT_TREE_COLOR = '#c62828';
+        const VIEW_STORAGE_KEY = 'calpolytrees:view:v1';
+        const DEFAULT_VIEW = {
+            center: [-120.6619, 35.3004],
+            zoom: 15.5,
+            bearing: 0,
+            pitch: 0
+        };
+        const persistedView = loadPersistedView();
 
         const mapEl = document.getElementById('map');
         const searchInput = document.getElementById('search');
@@ -288,9 +296,9 @@
         let maxDbh = null;
         let mapReady = false;
         let dataReady = false;
-        let activeBasemap = 'cartoLight';
+        let activeBasemap = persistedView && BASEMAPS[persistedView.basemap] ? persistedView.basemap : 'cartoLight';
         let pendingUpdate = false;
-        let hasFittedInitialBounds = false;
+        let hasFittedInitialBounds = !!persistedView;
 
         const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
 
@@ -325,6 +333,7 @@
                         this.updateActiveState();
                         this.closeMenu();
                         applyBasemapVisibility();
+                        persistCurrentView();
                     });
                     this.menu.appendChild(item);
                 });
@@ -375,8 +384,10 @@
         const map = new maplibregl.Map({
             container: mapEl,
             style: createMapStyle(),
-            center: [-120.6619, 35.3004],
-            zoom: 15.5,
+            center: persistedView?.center || DEFAULT_VIEW.center,
+            zoom: persistedView?.zoom ?? DEFAULT_VIEW.zoom,
+            bearing: persistedView?.bearing ?? DEFAULT_VIEW.bearing,
+            pitch: persistedView?.pitch ?? DEFAULT_VIEW.pitch,
             maxZoom: 20,
             dragRotate: false,
             touchPitch: false
@@ -384,9 +395,12 @@
 
         map.addControl(new maplibregl.NavigationControl(), 'top-left');
         map.addControl(new BasemapControl(), 'top-left');
+        map.on('moveend', persistCurrentView);
 
         map.on('load', () => {
+            const wasReady = mapReady;
             mapReady = true;
+            if (wasReady) restorePersistedView();
             applyBasemapVisibility();
             bindMapInteractions();
             syncMobileControls();
@@ -1047,6 +1061,58 @@
                 if (!map.getLayer(layerId)) return;
                 map.setLayoutProperty(layerId, 'visibility', activeBasemap === key ? 'visible' : 'none');
             });
+        }
+
+        function loadPersistedView() {
+            try {
+                const raw = localStorage.getItem(VIEW_STORAGE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || !Array.isArray(parsed.center) || parsed.center.length !== 2) return null;
+                const [lng, lat] = parsed.center;
+                if (!Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(parsed.zoom)) return null;
+                return {
+                    center: [lng, lat],
+                    zoom: parsed.zoom,
+                    bearing: Number.isFinite(parsed.bearing) ? parsed.bearing : 0,
+                    pitch: Number.isFinite(parsed.pitch) ? parsed.pitch : 0,
+                    basemap: typeof parsed.basemap === 'string' ? parsed.basemap : 'cartoLight'
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        function persistCurrentView() {
+            if (!mapReady) return;
+            try {
+                const center = map.getCenter();
+                const view = {
+                    center: [Number(center.lng.toFixed(6)), Number(center.lat.toFixed(6))],
+                    zoom: Number(map.getZoom().toFixed(3)),
+                    bearing: Number(map.getBearing().toFixed(2)),
+                    pitch: Number(map.getPitch().toFixed(2)),
+                    basemap: activeBasemap
+                };
+                localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(view));
+            } catch {
+                // Ignore storage failures.
+            }
+        }
+
+        function restorePersistedView() {
+            const view = loadPersistedView();
+            if (!view) return;
+            map.jumpTo({
+                center: view.center,
+                zoom: view.zoom,
+                bearing: view.bearing,
+                pitch: view.pitch
+            });
+            if (BASEMAPS[view.basemap]) {
+                activeBasemap = view.basemap;
+                applyBasemapVisibility();
+            }
         }
 
         function toRadians(deg) {
