@@ -55,16 +55,48 @@
         .popup-meta { font-size: 0.9rem; color: #4b604b; }
         .popup-meta span { display: block; margin-bottom: 4px; }
 
-        .basemap-select {
-            width: 150px;
+        .basemap-control { position: relative; }
+        .basemap-icon-btn {
+            width: 30px;
+            height: 30px;
             border: 0;
             background: #fff;
             color: #1f2a1c;
-            padding: 8px 10px;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+        }
+        .basemap-icon-btn:hover { background: #f5f5f5; }
+        .basemap-icon-btn svg { width: 18px; height: 18px; display: block; }
+        .basemap-menu {
+            position: absolute;
+            top: 34px;
+            left: 0;
+            min-width: 190px;
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.14);
+            border-radius: 6px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+            padding: 4px;
+            z-index: 20;
+            display: none;
+        }
+        .basemap-menu.open { display: block; }
+        .basemap-menu-btn {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            text-align: left;
+            padding: 7px 9px;
             border-radius: 4px;
             font-size: 12px;
-            outline: none;
-            appearance: none;
+            color: #1f2a1c;
+            cursor: pointer;
+        }
+        .basemap-menu-btn:hover { background: #f5f5f5; }
+        .basemap-menu-btn.active {
+            background: #2d5016;
+            color: #fff;
         }
 
         @media (max-width: 900px) {
@@ -161,11 +193,6 @@
                 ],
                 attribution: '&copy; OpenStreetMap &copy; CARTO'
             },
-            esriImagery: {
-                label: 'Esri World Imagery',
-                tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                attribution: 'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-            },
             esriWayback2016: {
                 label: 'Esri Wayback 2016-08-31',
                 // ArcGIS item: d02f6b6905a142a2a3726844e7f3da2b
@@ -186,9 +213,10 @@
             }
         };
 
+        const BASEMAP_ORDER = ['cartoLight', 'esriWayback2025', 'esriWayback2016', 'esriWayback2014'];
+
         const BASEMAP_LAYER_IDS = {
             cartoLight: 'basemap-carto',
-            esriImagery: 'basemap-esri',
             esriWayback2016: 'basemap-wayback-2016',
             esriWayback2025: 'basemap-wayback-2025',
             esriWayback2014: 'basemap-wayback-2014'
@@ -249,7 +277,7 @@
         let maxDbh = null;
         let mapReady = false;
         let dataReady = false;
-        let activeBasemap = 'esriWayback2025';
+        let activeBasemap = 'cartoLight';
         let pendingUpdate = false;
 
         const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -257,31 +285,78 @@
         class BasemapControl {
             onAdd() {
                 this.container = document.createElement('div');
-                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group basemap-control';
 
-                this.select = document.createElement('select');
-                this.select.className = 'basemap-select';
-                this.select.innerHTML = `
-                    <option value="cartoLight">Carto Light</option>
-                    <option value="esriImagery">Esri World Imagery</option>
-                    <option value="esriWayback2025">Esri Wayback 2025-09-04</option>
-                    <option value="esriWayback2016">Esri Wayback 2016-08-31</option>
-                    <option value="esriWayback2014">Esri Wayback 2014-02-20</option>
+                this.button = document.createElement('button');
+                this.button.type = 'button';
+                this.button.className = 'basemap-icon-btn';
+                this.button.title = 'Basemap';
+                this.button.setAttribute('aria-label', 'Basemap');
+                this.button.setAttribute('aria-expanded', 'false');
+                this.button.innerHTML = `
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 6.5 12 3l9 3.5-9 3.5L3 6.5zm0 5 9 3.5 9-3.5M3 16.5 12 20l9-3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
                 `;
-                this.select.value = activeBasemap;
-                this.onChange = (e) => {
-                    activeBasemap = e.target.value;
-                    applyBasemapVisibility();
-                };
-                this.select.addEventListener('change', this.onChange);
 
-                this.container.appendChild(this.select);
+                this.menu = document.createElement('div');
+                this.menu.className = 'basemap-menu';
+
+                BASEMAP_ORDER.forEach((key) => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'basemap-menu-btn';
+                    item.dataset.basemap = key;
+                    item.textContent = BASEMAPS[key].label;
+                    item.addEventListener('click', () => {
+                        activeBasemap = key;
+                        this.updateActiveState();
+                        this.closeMenu();
+                        applyBasemapVisibility();
+                    });
+                    this.menu.appendChild(item);
+                });
+
+                this.toggleMenu = (e) => {
+                    e.stopPropagation();
+                    const open = !this.menu.classList.contains('open');
+                    this.menu.classList.toggle('open', open);
+                    this.button.setAttribute('aria-expanded', String(open));
+                };
+
+                this.handleOutsideClick = (e) => {
+                    if (!this.container.contains(e.target)) {
+                        this.closeMenu();
+                    }
+                };
+
+                this.button.addEventListener('click', this.toggleMenu);
+                document.addEventListener('pointerdown', this.handleOutsideClick);
+                this.updateActiveState();
+
+                this.container.appendChild(this.button);
+                this.container.appendChild(this.menu);
                 return this.container;
             }
 
+            updateActiveState() {
+                this.menu.querySelectorAll('.basemap-menu-btn').forEach((item) => {
+                    item.classList.toggle('active', item.dataset.basemap === activeBasemap);
+                });
+            }
+
+            closeMenu() {
+                this.menu.classList.remove('open');
+                this.button.setAttribute('aria-expanded', 'false');
+            }
+
             onRemove() {
-                this.select.removeEventListener('change', this.onChange);
-                this.container.parentNode.removeChild(this.container);
+                this.closeMenu();
+                this.button.removeEventListener('click', this.toggleMenu);
+                document.removeEventListener('pointerdown', this.handleOutsideClick);
+                if (this.container.parentNode) {
+                    this.container.parentNode.removeChild(this.container);
+                }
             }
         }
 
@@ -352,12 +427,6 @@
                         tileSize: 256,
                         attribution: BASEMAPS.cartoLight.attribution
                     },
-                    basemap_esri: {
-                        type: 'raster',
-                        tiles: BASEMAPS.esriImagery.tiles,
-                        tileSize: 256,
-                        attribution: BASEMAPS.esriImagery.attribution
-                    },
                     basemap_wayback_2016: {
                         type: 'raster',
                         tiles: BASEMAPS.esriWayback2016.tiles,
@@ -395,12 +464,6 @@
                         type: 'raster',
                         source: 'basemap_carto',
                         layout: { visibility: 'visible' }
-                    },
-                    {
-                        id: 'basemap-esri',
-                        type: 'raster',
-                        source: 'basemap_esri',
-                        layout: { visibility: 'none' }
                     },
                     {
                         id: 'basemap-wayback-2016',
