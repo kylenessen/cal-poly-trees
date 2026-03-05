@@ -188,6 +188,8 @@
             }
         ];
 
+        const DEFAULT_TREE_COLOR = '#c62828';
+
         const mapEl = document.getElementById('map');
         const searchInput = document.getElementById('search');
         const familyFiltersContainer = document.getElementById('familyFilters');
@@ -283,7 +285,15 @@
         fetch('trees.geojson')
             .then((r) => r.json())
             .then((data) => {
-                trees = data.features.map((feature, index) => enrichFeature(feature, index));
+                const enrichedTrees = data.features.map((feature, index) => enrichFeature(feature, index));
+                const familyColorMap = buildFamilyColorMap(enrichedTrees);
+                trees = enrichedTrees.map((feature) => ({
+                    ...feature,
+                    properties: {
+                        ...feature.properties,
+                        family_color: familyColorMap[feature.properties.family] || DEFAULT_TREE_COLOR
+                    }
+                }));
                 totalCount.textContent = trees.length;
 
                 const families = [...new Set(trees.map((f) => f.properties.family).filter(Boolean))].sort();
@@ -351,9 +361,9 @@
                         source: 'trees',
                         paint: {
                             'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.8, 16, 3.8, 18, 5.2, 20, 6],
-                            'circle-color': '#c62828',
+                            'circle-color': ['coalesce', ['get', 'family_color'], DEFAULT_TREE_COLOR],
                             'circle-stroke-width': 1,
-                            'circle-stroke-color': '#7f1d1d',
+                            'circle-stroke-color': '#4b5563',
                             'circle-opacity': 0.85
                         }
                     },
@@ -361,11 +371,11 @@
                         id: 'trees-labels',
                         type: 'symbol',
                         source: 'trees',
-                        minzoom: 19,
+                        minzoom: 18,
                         layout: {
                             'text-field': ['coalesce', ['get', 'common_name'], ''],
                             'text-font': ['Noto Sans Regular'],
-                            'text-size': ['interpolate', ['linear'], ['zoom'], 19, 11, 21, 14],
+                            'text-size': ['interpolate', ['linear'], ['zoom'], 18, 10.5, 21, 14],
                             'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
                             'text-radial-offset': 0.7,
                             'text-justify': 'auto',
@@ -373,9 +383,9 @@
                             'symbol-sort-key': ['to-number', ['coalesce', ['get', 'height_ft'], 0]]
                         },
                         paint: {
-                            'text-color': '#2d5016',
+                            'text-color': '#000000',
                             'text-halo-color': '#ffffff',
-                            'text-halo-width': 1.35
+                            'text-halo-width': 1.5
                         }
                     },
                     {
@@ -413,12 +423,17 @@
 
         function enrichFeature(feature, index) {
             const props = feature.properties || {};
+            const normalizedFamily = normalizeFamilyName(props.family);
+            const normalizedProps = {
+                ...props,
+                family: normalizedFamily || null
+            };
             const out = {
                 ...feature,
                 id: props.tree_id ?? index,
                 properties: {
-                    ...props,
-                    search_blob: [props.common_name, props.scientific_name, props.family, props.location]
+                    ...normalizedProps,
+                    search_blob: [normalizedProps.common_name, normalizedProps.scientific_name, normalizedProps.family, normalizedProps.location]
                         .filter(Boolean)
                         .join(' ')
                         .toLowerCase()
@@ -426,10 +441,49 @@
             };
 
             GROUP_DEFS.forEach((group) => {
-                out.properties[`group_${group.key}`] = group.match(props) ? 1 : 0;
+                out.properties[`group_${group.key}`] = group.match(normalizedProps) ? 1 : 0;
             });
 
             return out;
+        }
+
+        function normalizeFamilyName(family) {
+            if (!family) return '';
+            return family
+                .replace(/\s*\([^)]*\)\s*/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function buildFamilyColorMap(features) {
+            const familyCounts = new Map();
+            features.forEach((feature) => {
+                const family = feature.properties.family;
+                if (!family) return;
+                familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
+            });
+
+            const families = [...familyCounts.entries()]
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                .map(([family]) => family);
+
+            const colorMap = {};
+            families.forEach((family) => {
+                colorMap[family] = familyToColor(family);
+            });
+            return colorMap;
+        }
+
+        function familyToColor(family) {
+            if (!family) return DEFAULT_TREE_COLOR;
+            let hash = 0;
+            for (let i = 0; i < family.length; i += 1) {
+                hash = ((hash * 31) + family.charCodeAt(i)) >>> 0;
+            }
+            const hue = hash % 360;
+            const saturation = 62 + ((hash >> 4) % 10);
+            const lightness = 38 + ((hash >> 9) % 8);
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         }
 
         function syncDataToMap() {
